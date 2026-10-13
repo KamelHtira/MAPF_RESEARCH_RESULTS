@@ -26,7 +26,8 @@ window.RESULTS = {
     subtitle: "League of Robot Runners: improving the default prioritized planner on the warehouse_small map",
     updated: "2026-10-13",
     setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), Python planner, built in WSL Ubuntu. " +
-           "Each setting was run 3 times on the same machine. Runs of the same setting can differ, because the planner breaks ties by memory address, so even a small edit to the file can change the results.",
+           "Each setting was run 10 times on the same machine. Runs of the same setting can differ, because the planner breaks ties by memory address, so even a small edit to the file can change the results. " +
+           "A robot counts as stuck when it makes no forward move in the last 60 steps of a run.",
     repo: "https://github.com/KamelHtira/MAPF_RESEARCH_RESULTS"
   },
 
@@ -83,12 +84,12 @@ window.RESULTS = {
       settings: [],
       kit: "Start-Kit-default",
       file: "downloads/algorithms/default_planner.py",
-      conclusion: "Reference point for everything below. In the 10-robot scenario two robots stay deadlocked at a junction for most of the run, and its runs finish between 70 and 73 tasks.",
+      conclusion: "Reference point for everything below. In the 10-robot scenario 9 of 10 runs end with robots stuck at a junction, and at 100 robots 5 of 10 do.",
       results: {
-        s2:   runs("default", "s2", [23, 23, 23]),
-        s10:  runs("default", "s10", [70, 73, 73]),
-        s50:  runs("default", "s50", [398, 390, 398]),
-        s100: runs("default", "s100", [709, 697, 661])
+        s2:   runs("default", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
+        s10:  runs("default", "s10", [70, 73, 73, 70, 76, 73, 70, 70, 73, 70]),
+        s50:  runs("default", "s50", [398, 390, 398, 398, 377, 398, 398, 398, 398, 398]),
+        s100: runs("default", "s100", [709, 697, 661, 717, 726, 726, 717, 732, 717, 698])
       }
     },
     {
@@ -99,12 +100,12 @@ window.RESULTS = {
       settings: ["DELAY_FIX=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-delay-fix",
       file: "downloads/algorithms/delay_fix_planner.py",
-      conclusion: "Does not change the 2-robot task count (23, same as Default). Ahead of Default at 100 robots (720 to 723 tasks, every run above every Default run) and slightly at 50 robots; at 10 robots it ranges from 73 to 79. The planner runs about twice as slowly.",
+      conclusion: "Same 2-robot result as Default (23). Clearly better at 10 robots (76.3 tasks on average against 71.8) and the only algorithm whose runs almost never end with stuck robots (1 of 10 runs at 10 robots, 0 of 10 at 100 robots). No significant change in tasks at 50 and 100 robots. The planner runs slower than Default, roughly 1.5 to 2 times in my timings.",
       results: {
-        s2:   runs("delay-fix", "s2", [23, 23, 23]),
-        s10:  runs("delay-fix", "s10", [79, 76, 73]),
-        s50:  runs("delay-fix", "s50", [399, 402, 399]),
-        s100: runs("delay-fix", "s100", [720, 723, 720])
+        s2:   runs("delay-fix", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
+        s10:  runs("delay-fix", "s10", [79, 76, 73, 76, 76, 79, 76, 76, 76, 76]),
+        s50:  runs("delay-fix", "s50", [399, 402, 399, 399, 367, 361, 399, 399, 402, 393]),
+        s100: runs("delay-fix", "s100", [720, 723, 720, 718, 714, 711, 686, 741, 711, 686])
       }
     },
     {
@@ -115,12 +116,12 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=0"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/wait_action_planner.py",
-      conclusion: "Removes the 10-robot deadlock: 79 to 83 tasks against 70 to 73 for Default. No clear effect at 50 and 100 robots, where its runs spread widely (362 to 401 at 50 robots). No effect on the 2-robot case.",
+      conclusion: "Biggest gain at 10 robots: 82.3 tasks on average against 71.8 for Default, and no run ends with stuck robots. Slightly lower than Default at 50 robots, and no difference at 100 robots, where 7 of 10 runs end with stuck robots. No effect on the 2-robot case.",
       results: {
-        s2:   runs("wait-action", "s2", [23, 23, 23]),
-        s10:  runs("wait-action", "s10", [83, 83, 79]),
-        s50:  runs("wait-action", "s50", [401, 362, 393]),
-        s100: runs("wait-action", "s100", [701, 659, 704])
+        s2:   runs("wait-action", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
+        s10:  runs("wait-action", "s10", [83, 83, 79, 84, 83, 83, 79, 83, 83, 83]),
+        s50:  runs("wait-action", "s50", [401, 362, 393, 390, 373, 382, 392, 394, 392, 369]),
+        s100: runs("wait-action", "s100", [701, 659, 704, 695, 703, 750, 673, 723, 673, 697])
       }
     },
     {
@@ -131,12 +132,12 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/priority_swap_planner.py",
-      conclusion: "Fixes the 2-robot case: 24 tasks in all three runs against 23 for Default. Best average at 100 robots (714 to 737 tasks). At 50 robots it is lower than Default on average, and at 10 robots it varies from 70 to 83.",
+      conclusion: "Fixes the 2-robot case: 24 tasks in all 10 runs against 23 for Default. At 10 robots the results split into two groups (70 to 83 tasks) and 5 of 10 runs end with stuck robots. Lower than Default at 50 robots and no different at 100 robots.",
       results: {
-        s2:   runs("priority-swap", "s2", [24, 24, 24]),
-        s10:  runs("priority-swap", "s10", [83, 70, 70]),
-        s50:  runs("priority-swap", "s50", [391, 371, 360]),
-        s100: runs("priority-swap", "s100", [737, 725, 714])
+        s2:   runs("priority-swap", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
+        s10:  runs("priority-swap", "s10", [83, 70, 70, 83, 70, 70, 70, 83, 83, 83]),
+        s50:  runs("priority-swap", "s50", [391, 371, 360, 360, 378, 391, 389, 372, 391, 378]),
+        s100: runs("priority-swap", "s100", [737, 725, 714, 706, 715, 717, 712, 705, 705, 717])
       }
     },
     {
@@ -147,12 +148,12 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/wait_and_swap_planner.py",
-      conclusion: "Same 2-robot gain as the priority swap alone (24 tasks), but the lowest average at 100 robots (596 to 720 tasks) and no clear gain elsewhere. Not recommended as it is.",
+      conclusion: "Same 2-robot gain as the priority swap alone (24 tasks). Worse than Default at 100 robots (596 to 720 tasks), and 7 of 10 runs end with stuck robots at both 10 and 100 robots. Not recommended as it is.",
       results: {
-        s2:   runs("wait-and-swap", "s2", [24, 24, 24]),
-        s10:  runs("wait-and-swap", "s10", [83, 70, 73]),
-        s50:  runs("wait-and-swap", "s50", [392, 370, 393]),
-        s100: runs("wait-and-swap", "s100", [720, 623, 596])
+        s2:   runs("wait-and-swap", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
+        s10:  runs("wait-and-swap", "s10", [83, 70, 73, 73, 83, 83, 73, 73, 70, 70]),
+        s50:  runs("wait-and-swap", "s50", [392, 370, 393, 391, 389, 399, 382, 392, 393, 390]),
+        s100: runs("wait-and-swap", "s100", [720, 623, 596, 635, 667, 618, 718, 667, 720, 652])
       }
     }
   ]

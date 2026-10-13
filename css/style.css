@@ -6,7 +6,6 @@
   --head: #f2f4f6;
   --up: #157347;
   --down: #b42318;
-  --warn: #fff4d6;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,7 +16,6 @@
     --head: #1a2027;
     --up: #5fd39a;
     --down: #ff8b7f;
-    --warn: #3a3012;
   }
 }
 
@@ -37,43 +35,46 @@ th small { display: block; font-weight: 400; color: var(--muted); }
 th a { font-weight: 400; font-size: 0.85rem; white-space: nowrap; }
 td.num, th.num { text-align: right; }
 
-tr.row { cursor: pointer; }
-tr.row:hover { background: var(--head); }
-tr.row button { all: unset; cursor: pointer; font-weight: 600; }
-tr.row button::before {
+/* clickable rows: an algorithm (row) and a scenario inside it (srow) */
+tr.row, tr.srow { cursor: pointer; }
+tr.row:hover, tr.srow:hover { background: var(--head); }
+tr.row button, tr.srow button { all: unset; cursor: pointer; font-weight: 600; }
+tr.row button::before, tr.srow button::before {
   content: "\25B8";
   display: inline-block;
   width: 1.1em;
   color: var(--muted);
   transition: transform 0.25s ease;
 }
-tr.row button[aria-expanded="true"]::before { transform: rotate(90deg); }
-tr.row button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+tr.row button[aria-expanded="true"]::before, tr.srow button[aria-expanded="true"]::before { transform: rotate(90deg); }
+tr.row button:focus-visible, tr.srow button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .tagline { display: block; font-size: 0.85rem; color: var(--muted); }
 .mean { font-weight: 600; }
 .delta { display: block; font-size: 0.85rem; color: var(--muted); }
 .delta.up { color: var(--up); }
 .delta.down { color: var(--down); }
+.srow .delta { display: inline; margin-left: 0.5em; }
 
-/* expand / collapse: the content sits in a grid whose single row animates between 0fr and 1fr */
+/* expand / collapse: the content sits in a grid whose single row animates between 0fr and 1fr.
+   Child selectors keep an open outer row from opening the rows nested inside it. */
 tr.detail > td { padding: 0; border-top: 0; border-bottom: 0; }
 tr.detail.open > td { border-bottom: 1px solid var(--line); }
 .expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease; }
-tr.detail.open .expand { grid-template-rows: 1fr; }
+tr.detail.open > td > .expand { grid-template-rows: 1fr; }
 .expand-inner { overflow: hidden; min-height: 0; }
 .content { padding: 12px 16px 16px; opacity: 0; transition: opacity 0.25s ease; }
-tr.detail.open .content { opacity: 1; }
+tr.detail.open > td > .expand > .expand-inner > .content { opacity: 1; }
 .content p { margin: 0 0 8px; }
+.content.sub { padding: 6px 0 10px 28px; }
 
 .inner-wrap { overflow-x: auto; margin: 8px 0; }
+.content.sub .inner-wrap { margin: 0; }
 table.runs th, table.runs td { padding: 6px 12px; }
-table.runs td.scn { min-width: 200px; }
-.meanline { display: block; font-size: 0.85rem; color: var(--muted); }
-.meanline .delta { display: inline; }
-table.runs tr.first-run > td { border-top: 2px solid var(--line); }
+table.sub { width: auto; min-width: 420px; }
+table.sub th, table.sub td { padding: 4px 12px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .expand, .content, tr.row button::before { transition: none; }
+  .expand, .content, tr.row button::before, tr.srow button::before { transition: none; }
 }
 @media (max-width: 560px) {
   main { padding: 16px 12px 32px; }
