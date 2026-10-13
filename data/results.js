@@ -23,7 +23,13 @@ function runs(method, scenario, taskCounts) {
 window.RESULTS = {
   meta: {
     title: "MAPF Research Results",
-    subtitle: "League of Robot Runners: improving the default prioritized planner on the warehouse_small map",
+    description: "This page is part of a PhD project on Multi-Agent Path Finding (MAPF): planning collision-free routes for many robots that share the same space. " +
+                 "The work is built around the League of Robot Runners competition, a lifelong warehouse setting in which robots keep receiving new tasks, can move forward, turn or wait, " +
+                 "and are scored by how many tasks they finish in a fixed number of steps. ",
+    author: "Kamel Htira",
+    supervisor: "Varga László Zsolt",
+    university: "Eötvös Loránd University (ELTE)",
+    logo: "assets/elte-logo.svg",   // the official logo file; the page just leaves it out if the file is missing
     updated: "2026-10-13",
     setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), Python planner, built in WSL Ubuntu. " +
            "Each setting was run 10 times on the same machine. Runs of the same setting can differ, because the planner breaks ties by memory address, so even a small edit to the file can change the results. " +

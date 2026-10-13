@@ -99,16 +99,23 @@
   }
 
   // ---------- header, explanation, footer ----------
-  document.title = D.meta.title;
+  document.title = D.meta.title + (D.meta.author ? " | " + D.meta.author : "");
   $("title").textContent = D.meta.title;
-  $("subtitle").textContent = D.meta.subtitle || "";
-  $("explain").textContent =
-    "Each row is an algorithm that was tried. Each column is a test scenario: the same map with a different number of robots. " +
-    "The number in a cell is the mean number of tasks finished over all runs (higher is better), and the line under it is the change against \"" +
-    baseline.name + "\". The change is green or red only when it is statistically significant (Welch's t-test, 5% level), and grey otherwise, " +
-    "because then it may just be run-to-run variation. The test is run separately for every cell, so one or two coloured cells can still be chance. " +
-    "Click a row to see its conclusion and settings, then click a scenario to list its individual runs, each with a download of its result file. " +
-    "The links in the column headers download the scenario files, so the same problem can be run again.";
+  $("description").textContent = D.meta.description || "";
+
+  var mast = $("masthead");
+  if (D.meta.logo) {
+    var logo = el("img", { class: "logo", src: D.meta.logo, alt: (D.meta.university || "University") + " logo" });
+    logo.addEventListener("error", function () { logo.remove(); });   // no file yet: leave the logo out
+    mast.appendChild(logo);
+  }
+  mast.appendChild(el("div", { class: "who" }, [
+    D.meta.university ? el("p", { class: "uni", text: D.meta.university }) : null,
+    el("p", { class: "people" }, [
+      D.meta.author ? el("span", { class: "author", text: D.meta.author }) : null,
+      D.meta.supervisor ? el("span", { class: "supervisor" }, [el("span", { class: "label", text: "Supervisor" }), " " + D.meta.supervisor]) : null
+    ])
+  ]));
   $("setup").textContent = D.meta.setup || "";
   $("updated").textContent = D.meta.updated ? "Last updated " + D.meta.updated + "." : "";
   if (D.meta.repo) $("repo-link").href = D.meta.repo; else $("repo-link").hidden = true;
