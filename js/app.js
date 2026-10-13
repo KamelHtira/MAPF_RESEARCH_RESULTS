@@ -29,7 +29,6 @@
   function basename(p) { return p.split("/").pop(); }
 
   var baseline = D.methods.filter(function (m) { return m.baseline; })[0] || D.methods[0];
-  var noise = D.meta.noise_pct == null ? 2 : D.meta.noise_pct;
 
   // the runs of a method on a scenario, each as an object (a bare number means just the task count)
   function runsOf(method, sid) {
@@ -39,12 +38,19 @@
   }
   function meanTasks(runs) { return mean(runs.map(function (r) { return r.tasks; })); }
 
-  // change against the baseline: green / red, grey when inside the noise level
+  function range(runs) {
+    var t = runs.map(function (r) { return r.tasks; });
+    return [Math.min.apply(null, t), Math.max.apply(null, t)];
+  }
+
+  // change against the baseline: green / red, but grey when the runs overlap the baseline's runs (it may be run-to-run variation)
   function delta(method, sid) {
     var r = runsOf(method, sid), b = runsOf(baseline, sid);
     if (!r || !b || method === baseline) return null;
     var d = (meanTasks(r) - meanTasks(b)) / meanTasks(b) * 100;
-    var cls = Math.abs(d) < noise ? "delta" : (d > 0 ? "delta up" : "delta down");
+    var rr = range(r), br = range(b);
+    var overlap = rr[0] <= br[1] && br[0] <= rr[1];
+    var cls = overlap ? "delta" : (d > 0 ? "delta up" : "delta down");
     return el("span", { class: cls, text: (d > 0 ? "+" : "") + d.toFixed(1) + "%" });
   }
 
@@ -59,7 +65,7 @@
   $("explain").textContent =
     "Each row is an algorithm that was tried. Each column is a test scenario: the same map with a different number of robots. " +
     "The number in a cell is the mean number of tasks finished over several runs (higher is better), and the line under it is the change against \"" +
-    baseline.name + "\". Changes smaller than " + noise + "% are grey, because runs vary by about that much. " +
+    baseline.name + "\". A change is grey when the runs of that algorithm overlap the runs of \"" + baseline.name + "\", because then it may just be run-to-run variation. " +
     "Click a row to see its conclusion, its settings, and every individual run with a download of that run's result file. " +
     "The links in the column headers download the scenario files, so the same problem can be run again.";
   $("setup").textContent = D.meta.setup || "";
