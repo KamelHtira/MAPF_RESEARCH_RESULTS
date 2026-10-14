@@ -71,6 +71,8 @@ tr.row button::before, tr.srow button::before {
 tr.row button[aria-expanded="true"]::before, tr.srow button[aria-expanded="true"]::before { transform: rotate(90deg); }
 tr.row button:focus-visible, tr.srow button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .tagline { display: block; font-size: 0.85rem; color: var(--muted); }
+.tag { display: inline-block; margin-left: 0.5em; padding: 0 0.45em; font-size: 0.75rem; letter-spacing: 0.02em; color: var(--muted); border: 1px solid currentColor; border-radius: 3px; vertical-align: 0.08em; }
+.nruns { display: block; font-size: 0.75rem; color: var(--muted); font-style: italic; }
 .mean { font-weight: 600; }
 .delta { display: block; font-size: 0.85rem; color: var(--muted); }
 .delta.up { color: var(--up); }

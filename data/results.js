@@ -30,10 +30,11 @@ window.RESULTS = {
     supervisor: "Varga László Zsolt",
     university: "Eötvös Loránd University (ELTE)",
     logo: "assets/elte-logo.svg",   // the official logo file; the page just leaves it out if the file is missing
-    updated: "2026-10-13",
+    updated: "2026-10-14",
     setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), Python planner, built in WSL Ubuntu. " +
            "Each setting was run 10 times on the same machine. Runs of the same setting can differ, because the planner breaks ties by memory address, so even a small edit to the file can change the results. " +
-           "A robot counts as stuck when it makes no forward move in the last 60 steps of a run.",
+           "A robot counts as stuck when it makes no forward move in the last 60 steps of a run. " +
+           "The two rows tagged v2 are new: so far they have a single 10-robot run each and are n/a elsewhere, so treat their numbers as a first look, not an average.",
     repo: "https://github.com/KamelHtira/MAPF_RESEARCH_RESULTS"
   },
 
@@ -90,7 +91,7 @@ window.RESULTS = {
       settings: [],
       kit: "Start-Kit-default",
       file: "downloads/algorithms/default_planner.py",
-      conclusion: "Reference point for everything below. In the 10-robot scenario 9 of 10 runs end with robots stuck at a junction, and at 100 robots 5 of 10 do.",
+      conclusion: "Reference point for everything below. In the 10-robot scenario 9 of 10 runs end with robots stuck at a junction, and at 100 robots 5 of 10 do. The 10-robot stall is the same every time: at step 113 robot 8 reaches its goal in the one-wide connector at column 43 and gets a new goal behind it, while robot 4 is walking through that same square. Robot 8's search finds no path, and because a robot without a path reserves nothing, robot 4 keeps planning straight through it. The safety net only makes robot 4 turn in place, so it turns away, replans the same path and turns back, every 2 steps, and nobody gives way.",
       results: {
         s2:   runs("default", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
         s10:  runs("default", "s10", [70, 73, 73, 70, 76, 73, 70, 70, 73, 70]),
@@ -122,7 +123,7 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=0"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/wait_action_planner.py",
-      conclusion: "Biggest gain at 10 robots: 82.3 tasks on average against 71.8 for Default, and no run ends with stuck robots. Slightly lower than Default at 50 robots, and no difference at 100 robots, where 7 of 10 runs end with stuck robots. No effect on the 2-robot case.",
+      conclusion: "Biggest gain at 10 robots: 82.3 tasks on average against 71.8 for Default, and no run ends with stuck robots. Slightly lower than Default at 50 robots, and no difference at 100 robots, where 7 of 10 runs end with stuck robots. No effect on the 2-robot case. The wait move does not remove the step-113 deadlock itself: in 4 traced runs robots 4 and 8 stayed frozen for 133 and 187 steps in two of them and only paused 2 steps in the other two. Robot 8 still gets an empty path, because it needs two turns to leave and the reservation of robot 4 reaches its square one step earlier, so waiting cannot help it.",
       results: {
         s2:   runs("wait-action", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
         s10:  runs("wait-action", "s10", [83, 83, 79, 84, 83, 83, 79, 83, 83, 83]),
@@ -138,7 +139,7 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/priority_swap_planner.py",
-      conclusion: "Fixes the 2-robot case: 24 tasks in all 10 runs against 23 for Default. At 10 robots the results split into two groups (70 to 83 tasks) and 5 of 10 runs end with stuck robots. Lower than Default at 50 robots and no different at 100 robots.",
+      conclusion: "Fixes the 2-robot case: 24 tasks in all 10 runs against 23 for Default. At 10 robots the results split into two groups (70 to 83 tasks) and 5 of 10 runs end with stuck robots. Lower than Default at 50 robots and no different at 100 robots. It never fires at the step-113 deadlock, because it only starts when a path exists and is long; robot 8 has no path at all (fixed in the v2 row).",
       results: {
         s2:   runs("priority-swap", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
         s10:  runs("priority-swap", "s10", [83, 70, 70, 83, 70, 70, 70, 83, 83, 83]),
@@ -154,12 +155,40 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/wait_and_swap_planner.py",
-      conclusion: "Same 2-robot gain as the priority swap alone (24 tasks). Worse than Default at 100 robots (596 to 720 tasks), and 7 of 10 runs end with stuck robots at both 10 and 100 robots. Not recommended as it is.",
+      conclusion: "Same 2-robot gain as the priority swap alone (24 tasks). Worse than Default at 100 robots (596 to 720 tasks), and 7 of 10 runs end with stuck robots at both 10 and 100 robots. Not recommended as it is. The reason is the same gap as in the priority swap: it is not tried when the search finds no path at all, so the step-113 deadlock in the 10-robot scenario stays (see the v2 row).",
       results: {
         s2:   runs("wait-and-swap", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
         s10:  runs("wait-and-swap", "s10", [83, 70, 73, 73, 83, 83, 73, 73, 70, 70]),
         s50:  runs("wait-and-swap", "s50", [392, 370, 393, 391, 389, 399, 382, 392, 393, 390]),
         s100: runs("wait-and-swap", "s100", [720, 623, 596, 635, 667, 618, 718, 667, 720, 652])
+      }
+    },
+    {
+      id: "priority-swap-v2",
+      name: "Priority swap",
+      tag: "v2",
+      tagline: "Priority swap that also fires when the search finds no path at all.",
+      description: "Same as the priority swap, with one more case. When the A* finds no path at all for a robot (every route is blocked by reservations), the swap is tried too: the robots whose reserved paths cross its ideal route are found, the stuck robot plans first without them, the blocker replans around it, and the cheapest pair of paths is taken. There is no 'saves at least 3 ticks' check in this case, since there is nothing to compare against. The wait action stays off.",
+      settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
+      kit: "Start-Kit-priority-swap-v2",
+      file: "downloads/algorithms/priority_swap_v2_planner.py",
+      conclusion: "First look, one 10-robot run only, nothing else run yet. The new case fires at step 113 (robot 8 has no path, robot 4 is made to replan around it) and the run finishes 83 tasks with no robot stuck at the end, where v1 ends with 3 stuck robots in the same scenario. One run is not enough to call it solved; the 10 runs and the other scenarios are still to do.",
+      results: {
+        s10:  runs("priority-swap-v2", "s10", [83])
+      }
+    },
+    {
+      id: "wait-and-swap-v2",
+      name: "Wait action + priority swap",
+      tag: "v2",
+      tagline: "Both changes together, with the swap also firing when there is no path.",
+      description: "The wait action in A* and the priority swap enabled together, with the same extra case as the other v2 row: the swap is also tried when the search finds no path at all, and the cheapest pair of paths is taken. With the wait move the blocker can simply hold its square while the stuck robot turns and leaves.",
+      settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1"],
+      kit: "Start-Kit-wait-priority-v2",
+      file: "downloads/algorithms/wait_and_swap_v2_planner.py",
+      conclusion: "First look, one 10-robot run only, nothing else run yet. The new case fires at step 113 (and once more at step 178) and the run finishes 84 tasks with no robot stuck at the end. The 10-robot result of v1 of this method was 70 to 83 tasks with 7 of 10 runs ending stuck. One run is not enough to call it solved; the 10 runs and the other scenarios are still to do.",
+      results: {
+        s10:  runs("wait-and-swap-v2", "s10", [84])
       }
     }
   ]

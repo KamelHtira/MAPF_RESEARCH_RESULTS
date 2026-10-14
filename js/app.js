@@ -208,12 +208,14 @@
   D.methods.forEach(function (m) {
     var button = el("button", { type: "button", text: m.name });
     var row = el("tr", { class: "row", id: m.id }, [
-      el("td", {}, [button, m.baseline ? " (baseline)" : null, el("span", { class: "tagline", text: m.tagline || "" })])
+      el("td", {}, [button, m.baseline ? " (baseline)" : null, m.tag ? el("span", { class: "tag", text: m.tag }) : null, el("span", { class: "tagline", text: m.tagline || "" })])
     ]);
     D.scenarios.forEach(function (s) {
       var runs = runsOf(m, s.id);
       if (!runs) { row.appendChild(el("td", { class: "num", text: "n/a" })); return; }
-      row.appendChild(el("td", { class: "num" }, [el("span", { class: "mean", text: fmt(meanTasks(runs)) }), delta(m, s.id)]));
+      // fewer runs than the usual 10: say so, so a single run is not read as a proper average
+      var few = runs.length < 10 ? el("span", { class: "nruns", text: runs.length + (runs.length === 1 ? " run" : " runs") }) : null;
+      row.appendChild(el("td", { class: "num" }, [el("span", { class: "mean", text: fmt(meanTasks(runs)) }), delta(m, s.id), few]));
     });
     var detail = makeExpandable(row, button, "detail-" + m.id, cols, detailContent(m));
     body.appendChild(row);
