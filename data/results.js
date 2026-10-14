@@ -33,8 +33,7 @@ window.RESULTS = {
     updated: "2026-10-14",
     setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), Python planner, built in WSL Ubuntu. " +
            "Each setting was run 10 times on the same machine. Runs of the same setting can differ, because the planner breaks ties by memory address, so even a small edit to the file can change the results. " +
-           "A robot counts as stuck when it makes no forward move in the last 60 steps of a run. " +
-           "The two rows tagged v2 are new: so far they have a single 10-robot run each and are n/a elsewhere, so treat their numbers as a first look, not an average.",
+           "A robot counts as stuck when it makes no forward move in the last 60 steps of a run.",
     repo: "https://github.com/KamelHtira/MAPF_RESEARCH_RESULTS"
   },
 
@@ -172,9 +171,12 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-priority-swap-v2",
       file: "downloads/algorithms/priority_swap_v2_planner.py",
-      conclusion: "First look, one 10-robot run only, nothing else run yet. The new case fires at step 113 (robot 8 has no path, robot 4 is made to replan around it) and the run finishes 83 tasks with no robot stuck at the end, where v1 ends with 3 stuck robots in the same scenario. One run is not enough to call it solved; the 10 runs and the other scenarios are still to do.",
+      conclusion: "The empty-path case fixes the 10-robot deadlock: robots 4 and 8 never stay frozen after step 113 in any of the 10 runs (Priority swap v1: 5 of 10 runs stay frozen for 187 steps), the results are 83 or 84 tasks in every run against 71.8 for Default, and no run ends with stuck robots. At 50 robots 399.3 tasks, no clear difference from Default (p = 0.09). At 100 robots 739.3 against 710.0 for Default, borderline (p = 0.05): seven runs reach 757 to 772 tasks but three identical runs stop at 684 with robots 15, 57 and 97 stuck, so 3 of 10 runs still end with stuck robots. Same 2-robot gain as the other swap rows (24).",
       results: {
-        s10:  runs("priority-swap-v2", "s10", [83])
+        s2:  runs("priority-swap-v2", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
+        s10: runs("priority-swap-v2", "s10", [83, 83, 84, 84, 84, 83, 83, 84, 83, 83]),
+        s50: runs("priority-swap-v2", "s50", [400, 402, 399, 400, 400, 400, 394, 399, 400, 399]),
+        s100:runs("priority-swap-v2", "s100", [760, 760, 757, 772, 772, 760, 760, 684, 684, 684])
       }
     },
     {
@@ -186,9 +188,12 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1"],
       kit: "Start-Kit-wait-priority-v2",
       file: "downloads/algorithms/wait_and_swap_v2_planner.py",
-      conclusion: "First look, one 10-robot run only, nothing else run yet. The new case fires at step 113 (and once more at step 178) and the run finishes 84 tasks with no robot stuck at the end. The 10-robot result of v1 of this method was 70 to 83 tasks with 7 of 10 runs ending stuck. One run is not enough to call it solved; the 10 runs and the other scenarios are still to do.",
+      conclusion: "Best row so far. The 10-robot deadlock is gone: robots 4 and 8 are never frozen after step 113 in any of the 10 runs (v1 of this method: 7 of 10 runs frozen for 187 steps), 83 or 84 tasks in every run against 71.8 for Default, and no run ends with stuck robots. At 50 robots 397.9 tasks, no significant difference from Default (395.1), but better than Wait action alone (384.8). At 100 robots 769.2 tasks against 710.0 for Default (+8.3%), better than every other row, with a narrow spread (761 to 781) and only 1 of 10 runs ending with stuck robots (v1 of this method: 661.6 tasks, 7 of 10 stuck). Same 2-robot gain as the other swap rows (24).",
       results: {
-        s10:  runs("wait-and-swap-v2", "s10", [84])
+        s2:  runs("wait-and-swap-v2", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
+        s10: runs("wait-and-swap-v2", "s10", [84, 83, 83, 84, 83, 83, 84, 83, 83, 83]),
+        s50: runs("wait-and-swap-v2", "s50", [396, 401, 398, 401, 397, 399, 395, 401, 391, 400]),
+        s100:runs("wait-and-swap-v2", "s100", [763, 778, 770, 769, 761, 764, 781, 763, 770, 773])
       }
     }
   ]
