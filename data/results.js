@@ -20,6 +20,13 @@ function runs(method, scenario, taskCounts) {
   });
 }
 
+// big-map runs are 2 MB each: only run 1 has a result file, the others are listed as numbers
+function runsSample(method, scenario, taskCounts) {
+  return taskCounts.map(function (tasks, i) {
+    return i === 0 ? { tasks: tasks, file: "downloads/runs/" + method + "_" + scenario + "_1.json" } : { tasks: tasks };
+  });
+}
+
 window.RESULTS = {
   meta: {
     title: "MAPF Research Results",
@@ -30,16 +37,26 @@ window.RESULTS = {
     supervisor: "Varga László Zsolt",
     university: "Eötvös Loránd University (ELTE)",
     logo: "assets/elte-logo.svg",   // the official logo file; the page just leaves it out if the file is missing
-    updated: "2026-10-14",
-    setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), Python planner, built in WSL Ubuntu. " +
-           "Each setting was run 10 times on the same machine. Runs of the same setting can differ, because the planner breaks ties by memory address, so even a small edit to the file can change the results. " +
+    updated: "2026-10-20",
+    setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), built in WSL Ubuntu. Python rows ran in the kit's Python planner, C++ rows in a C++ port of it. " +
+           "Python rows: 10 runs per setting. C++ rows: 10 runs on warehouse_small (seeds 1 to 10) and 3 runs on the big maps (PIBT and SIPP: 1 run). Runs of one setting differ because equal-cost paths are tie-broken by memory address (Python) or a seed (C++), so each implementation is compared with its own Default. " +
            "A robot counts as stuck when it makes no forward move in the last 60 steps of a run.",
     repo: "https://github.com/KamelHtira/MAPF_RESEARCH_RESULTS"
   },
 
+  maps: [
+    { id: "warehouse_small", name: "warehouse_small", note: "33 x 57 cells. The scenarios of the first part of the project." },
+    { id: "warehouse_large", name: "warehouse_large", note: "140 x 500 cells, 1000 robots. C++ only, 3 runs per setting (SIPP: 1 run)." },
+    { id: "sortation_large", name: "sortation_large", note: "140 x 500 cells, 1200 robots. C++ only, 3 runs per setting (SIPP: 1 run)." },
+    { id: "paris", name: "Paris city", note: "256 x 256 cells, 1000 robots. C++ only. Default needs about 44 minutes for 300 steps; Wait action + priority swap v2 is not run yet. SIPP: 1 run." },
+    { id: "brc202d", name: "brc202d", note: "481 x 530 game map, 1000 robots. Default and Wait action + priority swap v2 did not finish (more than an hour per run); SIPP finishes in about a minute." }
+  ],
+
   scenarios: [
     {
       id: "s2",
+      mapId: "warehouse_small",
+      hidden: true,   // solved edge case, not shown on the page
       name: "2 robots: one agent pushed along",
       map: "warehouse_small (33 x 57)",
       robots: 2,
@@ -50,6 +67,8 @@ window.RESULTS = {
     },
     {
       id: "s10",
+      mapId: "warehouse_small",
+      hidden: true,   // solved edge case, not shown on the page
       name: "10 robots",
       map: "warehouse_small (33 x 57)",
       robots: 10,
@@ -60,6 +79,7 @@ window.RESULTS = {
     },
     {
       id: "s50",
+      mapId: "warehouse_small",
       name: "50 robots",
       map: "warehouse_small (33 x 57)",
       robots: 50,
@@ -70,6 +90,7 @@ window.RESULTS = {
     },
     {
       id: "s100",
+      mapId: "warehouse_small",
       name: "100 robots",
       map: "warehouse_small (33 x 57)",
       robots: 100,
@@ -77,6 +98,68 @@ window.RESULTS = {
       description: "The kit's 100-robot example.",
       files: ["warehouse_small_100.json", "maps/warehouse_small.map", "agents/warehouse_small_100.agents", "tasks/warehouse_small.tasks", "README.txt"],
       download: "downloads/scenarios/s100.zip"
+    },
+    {
+      id: "s10L",
+      mapId: "warehouse_small",
+      name: "10 robots, 2000 steps",
+      map: "warehouse_small (33 x 57)",
+      robots: 10,
+      steps: 2000,
+      description: "The 10-robot example run for 2000 steps instead of 300, to see whether the gain keeps growing. C++ only, no result files.",
+      files: ["warehouse_small_10.json", "maps/warehouse_small.map", "agents/warehouse_small_10.agents", "tasks/warehouse_small.tasks", "README.txt"],
+      download: "downloads/scenarios/s10.zip"
+    },
+    {
+      id: "s100L",
+      mapId: "warehouse_small",
+      name: "100 robots, 2000 steps",
+      map: "warehouse_small (33 x 57)",
+      robots: 100,
+      steps: 2000,
+      description: "The 100-robot example run for 2000 steps instead of 300. C++ only, no result files.",
+      files: ["warehouse_small_100.json", "maps/warehouse_small.map", "agents/warehouse_small_100.agents", "tasks/warehouse_small.tasks", "README.txt"],
+      download: "downloads/scenarios/s100.zip"
+    },
+    {
+      id: "wl1000",
+      mapId: "warehouse_large",
+      name: "1000 robots",
+      map: "warehouse_large (140 x 500)",
+      robots: 1000,
+      steps: 300,
+      description: "The kit's warehouse_large_1000 example. 3 runs per setting; only run 1 has a result file (2 MB each).",
+      files: ["warehouse_large_1000.json", "maps/warehouse_large.map", "agents/warehouse_large_1000.agents", "tasks/warehouse_large.tasks"]
+    },
+    {
+      id: "sl1200",
+      mapId: "sortation_large",
+      name: "1200 robots",
+      map: "sortation_large (140 x 500)",
+      robots: 1200,
+      steps: 300,
+      description: "The kit's sortation_large_1200 example. 3 runs per setting; only run 1 has a result file.",
+      files: ["sortation_large_1200.json", "maps/sortation_large.map", "agents/sortation_large_1200.agents", "tasks/sortation_large.tasks"]
+    },
+    {
+      id: "paris1000",
+      mapId: "paris",
+      name: "1000 robots",
+      map: "Paris_1_256 (256 x 256)",
+      robots: 1000,
+      steps: 300,
+      description: "The kit's paris_1000 example. 3 runs per setting; only run 1 has a result file.",
+      files: ["paris_1000.json", "maps/Paris_1_256.map", "agents/paris_1000.agents", "tasks/Paris.tasks"]
+    },
+    {
+      id: "brc1000",
+      mapId: "brc202d",
+      name: "1000 robots",
+      map: "brc202d (481 x 530)",
+      robots: 1000,
+      steps: 300,
+      description: "The kit's brc202d_1000 example. Not run yet.",
+      files: ["brc202d_1000.json", "maps/brc202d.map", "agents/brc202d_1000.agents", "tasks/brc202d.tasks"]
     }
   ],
 
@@ -90,7 +173,7 @@ window.RESULTS = {
       settings: [],
       kit: "Start-Kit-default",
       file: "downloads/algorithms/default_planner.py",
-      conclusion: "Reference point for everything below. In the 10-robot scenario 9 of 10 runs end with robots stuck at a junction, and at 100 robots 5 of 10 do. The 10-robot stall is the same every time: at step 113 robot 8 reaches its goal in the one-wide connector at column 43 and gets a new goal behind it, while robot 4 is walking through that same square. Robot 8's search finds no path, and because a robot without a path reserves nothing, robot 4 keeps planning straight through it. The safety net only makes robot 4 turn in place, so it turns away, replans the same path and turns back, every 2 steps, and nobody gives way.",
+      conclusion: "Reference point. At 10 robots 9 of 10 runs end with stuck robots, all from the same head-on jam at step 113.",
       results: {
         s2:   runs("default", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
         s10:  runs("default", "s10", [70, 73, 73, 70, 76, 73, 70, 70, 73, 70]),
@@ -106,7 +189,7 @@ window.RESULTS = {
       settings: ["DELAY_FIX=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-delay-fix",
       file: "downloads/algorithms/delay_fix_planner.py",
-      conclusion: "Same 2-robot result as Default (23). Clearly better at 10 robots (76.3 tasks on average against 71.8) and the only algorithm whose runs almost never end with stuck robots (1 of 10 runs at 10 robots, 0 of 10 at 100 robots). No significant change in tasks at 50 and 100 robots. The planner runs slower than Default, roughly 1.5 to 2 times in my timings.",
+      conclusion: "Better at 10 robots (+6.3%), no clear change at 50 or 100. Almost never ends with stuck robots.",
       results: {
         s2:   runs("delay-fix", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
         s10:  runs("delay-fix", "s10", [79, 76, 73, 76, 76, 79, 76, 76, 76, 76]),
@@ -122,7 +205,7 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=0"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/wait_action_planner.py",
-      conclusion: "Biggest gain at 10 robots: 82.3 tasks on average against 71.8 for Default, and no run ends with stuck robots. Slightly lower than Default at 50 robots, and no difference at 100 robots, where 7 of 10 runs end with stuck robots. No effect on the 2-robot case. The wait move does not remove the step-113 deadlock itself: in 4 traced runs robots 4 and 8 stayed frozen for 133 and 187 steps in two of them and only paused 2 steps in the other two. Robot 8 still gets an empty path, because it needs two turns to leave and the reservation of robot 4 reaches its square one step earlier, so waiting cannot help it.",
+      conclusion: "Best single change at 10 robots (+14.6%), no gain at 50 or 100. Does not remove the step-113 jam: robots 4 and 8 stay frozen for 131 steps in 2 of 10 runs.",
       results: {
         s2:   runs("wait-action", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
         s10:  runs("wait-action", "s10", [83, 83, 79, 84, 83, 83, 79, 83, 83, 83]),
@@ -138,7 +221,7 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/priority_swap_planner.py",
-      conclusion: "Fixes the 2-robot case: 24 tasks in all 10 runs against 23 for Default. At 10 robots the results split into two groups (70 to 83 tasks) and 5 of 10 runs end with stuck robots. Lower than Default at 50 robots and no different at 100 robots. It never fires at the step-113 deadlock, because it only starts when a path exists and is long; robot 8 has no path at all (fixed in the v2 row).",
+      conclusion: "Fixes the 2-robot case (24 against 23). Mixed at 10 robots, worse at 50. Skips robots with no path, so it never fires at the step-113 jam (fixed in v2).",
       results: {
         s2:   runs("priority-swap", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
         s10:  runs("priority-swap", "s10", [83, 70, 70, 83, 70, 70, 70, 83, 83, 83]),
@@ -154,7 +237,7 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1"],
       kit: "Start-Kit-wait-priority",
       file: "downloads/algorithms/wait_and_swap_planner.py",
-      conclusion: "Same 2-robot gain as the priority swap alone (24 tasks). Worse than Default at 100 robots (596 to 720 tasks), and 7 of 10 runs end with stuck robots at both 10 and 100 robots. Not recommended as it is. The reason is the same gap as in the priority swap: it is not tried when the search finds no path at all, so the step-113 deadlock in the 10-robot scenario stays (see the v2 row).",
+      conclusion: "Same 2-robot gain, but worse than Default at 100 robots (-6.8%) and 7 of 10 runs end stuck. Not recommended.",
       results: {
         s2:   runs("wait-and-swap", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
         s10:  runs("wait-and-swap", "s10", [83, 70, 73, 73, 83, 83, 73, 73, 70, 70]),
@@ -171,7 +254,7 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=1", "DETOUR_LIMIT=6", "DETOUR_MARGIN=3"],
       kit: "Start-Kit-priority-swap-v2",
       file: "downloads/algorithms/priority_swap_v2_planner.py",
-      conclusion: "The empty-path case fixes the 10-robot deadlock: robots 4 and 8 never stay frozen after step 113 in any of the 10 runs (Priority swap v1: 5 of 10 runs stay frozen for 187 steps), the results are 83 or 84 tasks in every run against 71.8 for Default, and no run ends with stuck robots. At 50 robots 399.3 tasks, no clear difference from Default (p = 0.09). At 100 robots 739.3 against 710.0 for Default, borderline (p = 0.05): seven runs reach 757 to 772 tasks but three identical runs stop at 684 with robots 15, 57 and 97 stuck, so 3 of 10 runs still end with stuck robots. Same 2-robot gain as the other swap rows (24).",
+      conclusion: "Removes the step-113 jam: 83 or 84 tasks in all 10 runs at 10 robots (+16.2%). At 100 robots +4.1%, borderline, and 3 of 10 runs still end stuck.",
       results: {
         s2:  runs("priority-swap-v2", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
         s10: runs("priority-swap-v2", "s10", [83, 83, 84, 84, 84, 83, 83, 84, 83, 83]),
@@ -188,12 +271,91 @@ window.RESULTS = {
       settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1"],
       kit: "Start-Kit-wait-priority-v2",
       file: "downloads/algorithms/wait_and_swap_v2_planner.py",
-      conclusion: "Best row so far. The 10-robot deadlock is gone: robots 4 and 8 are never frozen after step 113 in any of the 10 runs (v1 of this method: 7 of 10 runs frozen for 187 steps), 83 or 84 tasks in every run against 71.8 for Default, and no run ends with stuck robots. At 50 robots 397.9 tasks, no significant difference from Default (395.1), but better than Wait action alone (384.8). At 100 robots 769.2 tasks against 710.0 for Default (+8.3%), better than every other row, with a narrow spread (761 to 781) and only 1 of 10 runs ending with stuck robots (v1 of this method: 661.6 tasks, 7 of 10 stuck). Same 2-robot gain as the other swap rows (24).",
+      conclusion: "Best Python row: +16.0% at 10 robots and +8.3% at 100, no clear change at 50. 1 of 10 runs at 100 robots ends stuck.",
       results: {
         s2:  runs("wait-and-swap-v2", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
         s10: runs("wait-and-swap-v2", "s10", [84, 83, 83, 84, 83, 83, 84, 83, 83, 83]),
         s50: runs("wait-and-swap-v2", "s50", [396, 401, 398, 401, 397, 399, 395, 401, 391, 400]),
         s100:runs("wait-and-swap-v2", "s100", [763, 778, 770, 769, 761, 764, 781, 763, 770, 773])
+      }
+    },
+    {
+      id: "cpp-default",
+      impl: "cpp",
+      baseline: true,
+      name: "Default",
+      tagline: "The default planner rewritten in C++.",
+      description: "The Python Default rewritten in C++ with the same rules and the same search. In 24 tests (6 settings on 4 maps) it chose exactly the same actions as the Python version when ties between equal paths were broken the same way. Here ties are broken with a seeded random number, one seed per run.",
+      settings: ["WAIT_ACTION=0", "PRIORITY_SWAP=0", "TIE_SEED=1 to 10"],
+      kit: "Start-Kit-cpp",
+      file: "downloads/algorithms/cpp_planner.zip",
+      conclusion: "Baseline for the C++ rows. Same planner as the Python Default, but ties are broken differently, so its numbers differ (78.5 against 71.8 at 10 robots).",
+      results: {
+        s2:   runs("cpp-default", "s2", [23, 23, 23, 23, 23, 23, 23, 23, 23, 23]),
+        s10:  runs("cpp-default", "s10", [73, 83, 83, 76, 83, 83, 70, 76, 79, 79]),
+        s50:  runs("cpp-default", "s50", [362, 391, 393, 385, 393, 381, 387, 390, 394, 332]),
+        s100: runs("cpp-default", "s100", [719, 679, 684, 721, 705, 640, 721, 737, 685, 687]),
+        s10L:  [495, 583, 597, 589, 587, 572, 553, 570, 541, 552],
+        s100L: [4846, 4881, 4730, 4732, 4861, 4703, 4476, 4881, 4724, 4739],
+        wl1000:    runsSample("cpp-default", "wl1000", [907, 918, 905]),
+        sl1200:    runsSample("cpp-default", "sl1200", [1133, 1128, 1132]),
+        paris1000: runsSample("cpp-default", "paris1000", [1145, 1144, 1144])
+      }
+    },
+    {
+      id: "cpp-wait-and-swap-v2",
+      impl: "cpp",
+      tag: "v2",
+      name: "Wait action + priority swap",
+      tagline: "The best version so far, in C++.",
+      description: "The Python v2 planner (wait move in the A*, priority swap, and the swap also tried when the search finds no path) rewritten in C++. It also raises the limit on A* expansions from 100000 to 1000000, because long paths on the big maps hit the old limit.",
+      settings: ["WAIT_ACTION=1", "PRIORITY_SWAP=1", "EMPTY_PATH_SWAP=1", "TIE_SEED=1 to 10"],
+      kit: "Start-Kit-cpp",
+      file: "downloads/algorithms/cpp_planner.zip",
+      conclusion: "+4% to +10% on warehouse_small and no run ends stuck at 300 steps; +12.8% at 100 robots over 2000 steps. Only about +1% on the big maps (3 runs), where Default ends stuck in most runs. Planning takes about twice as long as Default, and the first step 40 to 60 s on the big maps.",
+      results: {
+        s2:   runs("cpp-wait-and-swap-v2", "s2", [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]),
+        s10:  runs("cpp-wait-and-swap-v2", "s10", [84, 84, 84, 84, 84, 83, 84, 83, 84, 83]),
+        s50:  runs("cpp-wait-and-swap-v2", "s50", [402, 395, 403, 392, 390, 402, 400, 400, 400, 400]),
+        s100: runs("cpp-wait-and-swap-v2", "s100", [777, 767, 771, 775, 766, 765, 771, 750, 756, 761]),
+        s10L:  [537, 597, 596, 598, 598, 598, 597, 596, 585, 591],
+        s100L: [5403, 5314, 5365, 5385, 5368, 5371, 5378, 5340, 5358, 5381],
+        wl1000: runsSample("cpp-wait-and-swap-v2", "wl1000", [919, 925, 924]),
+        sl1200: runsSample("cpp-wait-and-swap-v2", "sl1200", [1141, 1141, 1139])
+      }
+    },
+    {
+      id: "cpp-pibt",
+      impl: "cpp",
+      name: "PIBT",
+      tagline: "Priority inheritance with backtracking (Team Hipparcos).",
+      description: "Every robot moves one cell at a time and a robot with higher priority makes the robots in its way move first (priority inheritance, with backtracking). There are no paths and no reservations, and ties between cells are broken by distance to the goal, then by turning cost. The code is the PIBT of Team Hipparcos from the 2024 competition archive, unchanged. On warehouse maps it uses Manhattan distance to the goal and never chooses to stay in place.",
+      settings: ["none"],
+      kit: "Start-Kit-pibt-cpp",
+      file: "downloads/algorithms/pibt_cpp.zip",
+      conclusion: "One run so far: far below Default (170 against 380.8 at 50 robots, 298 against 697.8 at 100). Robots rarely wait but wander, probably because Manhattan distance ignores the shelves. Cheapest to plan: 0.1 s per run.",
+      results: {
+        s50:  runs("cpp-pibt", "s50", [170]),
+        s100: runs("cpp-pibt", "s100", [298])
+      }
+    },
+    {
+      id: "cpp-sipp",
+      impl: "cpp",
+      name: "SIPP with waypoints",
+      tagline: "Safe interval planning toward waypoints of a thinned map.",
+      description: "At start-up the map is thinned into a skeleton of corridors and crossroads, and the cells left are waypoints. For each goal a cheap A* on the skeleton picks a waypoint about every 24 cells. The real search is a safe interval path planner (SIPP): it plans only to the next waypoint, within 8 cells of it, and may wait before a move until the next cell is free. Robots are planned in index order, paths are reserved, and a robot about to collide drops its path and turns in place, as in the default planner. No priority swap.",
+      settings: ["none"],
+      kit: "Start-Kit-sipp-cpp",
+      file: "downloads/algorithms/sipp_cpp.zip",
+      conclusion: "One run per map. Much faster to plan: 10 s against 47 s for Default on warehouse_large, 1.1 min against 41 min on Paris, brc202d finishes, and no step takes more than 3 s (ours up to 1 min). The price is 6% to 14% fewer tasks than Default on the big maps.",
+      results: {
+        s50:  runs("cpp-sipp", "s50", [349]),
+        s100: runs("cpp-sipp", "s100", [629]),
+        wl1000:    runs("cpp-sipp", "wl1000", [797]),
+        sl1200:    runs("cpp-sipp", "sl1200", [1064]),
+        paris1000: runs("cpp-sipp", "paris1000", [980]),
+        brc1000:   runs("cpp-sipp", "brc1000", [370])
       }
     }
   ]

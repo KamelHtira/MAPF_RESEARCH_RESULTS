@@ -28,14 +28,37 @@
   function fmt(x) { return Number.isInteger(x) ? String(x) : x.toFixed(1); }
   function basename(p) { return p.split("/").pop(); }
 
-  var baseline = D.methods.filter(function (m) { return m.baseline; })[0] || D.methods[0];
+  // each implementation (Python, C++) is compared with its own default planner: they break ties between equal paths differently
+  function implOf(m) { return m.impl || "python"; }
+  function baselineFor(m) {
+    return D.methods.filter(function (x) { return x.baseline && implOf(x) === implOf(m); })[0] || D.methods[0];
+  }
 
   // the runs of a method on a scenario, each as an object (a bare number means just the task count)
   function runsOf(method, sid) {
     var list = method.results && method.results[sid];
     if (!list || !list.length) return null;
-    return list.map(function (r) { return typeof r === "number" ? { tasks: r } : r; });
+    var timing = (window.TIMING || {})[method.id + "|" + sid];
+    if (timing && timing.length !== list.length) timing = null;
+    return list.map(function (r, i) {
+      var run = typeof r === "number" ? { tasks: r } : r;
+      if (timing) { run.plan = timing[i][0]; run.slow = timing[i][1]; run.over = timing[i][2]; }
+      return run;
+    });
   }
+  // planning time of a set of runs: mean total over the whole run, slowest single step seen in any run
+  function timingOf(runs) {
+    if (!runs || runs[0].plan == null) return null;
+    return { total: mean(runs.map(function (r) { return r.plan; })), slow: Math.max.apply(null, runs.map(function (r) { return r.slow; })) };
+  }
+  function fmtTime(sec) {
+    if (sec < 1) return sec.toFixed(1) + " s";
+    if (sec < 10) return sec.toFixed(1) + " s";
+    if (sec < 60) return Math.round(sec) + " s";
+    if (sec < 3600) return (sec < 600 ? (sec / 60).toFixed(1) : Math.round(sec / 60)) + " min";
+    return (sec / 3600).toFixed(1) + " h";
+  }
+  function fmtTimes(x) { return x >= 10 ? String(Math.round(x)) : x.toFixed(1); }
   function tasksOf(runs) { return runs.map(function (r) { return r.tasks; }); }
   function meanTasks(runs) { return mean(tasksOf(runs)); }
   function range(runs) {
@@ -64,8 +87,9 @@
 
   // change against the baseline: green / red when significant, grey otherwise
   function delta(method, sid) {
-    var r = runsOf(method, sid), b = runsOf(baseline, sid);
-    if (!r || !b || method === baseline) return null;
+    var base = baselineFor(method);
+    var r = runsOf(method, sid), b = runsOf(base, sid);
+    if (!r || !b || method === base) return null;
     var d = (meanTasks(r) - meanTasks(b)) / meanTasks(b) * 100;
     var sig = significant(tasksOf(r), tasksOf(b));
     return el("span", {
@@ -120,29 +144,34 @@
   $("updated").textContent = D.meta.updated ? "Last updated " + D.meta.updated + "." : "";
   if (D.meta.repo) $("repo-link").href = D.meta.repo; else $("repo-link").hidden = true;
 
-  // ---------- the table ----------
+  // ---------- the table: one tab per map ----------
   var table = $("results");
-  var cols = D.scenarios.length + 1;
+  var maps = D.maps && D.maps.length ? D.maps : [{ id: "all", name: "All scenarios" }];
+  var shown = [];   // the scenarios of the selected map (the columns, and the scenarios listed inside an expanded row)
 
-  var headRow = el("tr", {}, [el("th", { text: "Algorithm" })]);
-  D.scenarios.forEach(function (s) {
-    headRow.appendChild(el("th", { class: "num" }, [
-      s.robots + " robots",
-      el("small", { text: s.steps + " steps" }),
-      s.download ? downloadLink(s.download, "download scenario") : null
-    ]));
-  });
-  table.appendChild(el("thead", {}, [headRow]));
+  function scenariosOf(map) {
+    return D.scenarios.filter(function (s) {
+      if (s.hidden) return false;   // solved edge cases: the data stays in results.js, the column is not shown
+      return maps.length === 1 && !s.mapId ? true : s.mapId === map.id;
+    });
+  }
+  // a method is listed when it has results on this map; C++ rows are always listed, so a missing C++ result shows as n/a
+  function listed(m, scen) {
+    if (implOf(m) === "cpp") return true;
+    return scen.some(function (s) { return runsOf(m, s.id); });
+  }
 
   // one scenario inside an expanded algorithm: a summary row that opens to the list of its runs
   function scenarioRows(m, s, runs, out) {
     var button = el("button", { type: "button", text: s.name });
     var r = range(runs);
+    var tm = timingOf(runs);
     var summary = el("tr", { class: "srow" }, [
       el("td", {}, [button]),
       el("td", { class: "num", text: String(runs.length) }),
       el("td", { class: "num" }, [el("strong", { text: fmt(meanTasks(runs)) }), " ", delta(m, s.id) || el("span", { class: "delta", text: "baseline" })]),
-      el("td", { class: "num", text: r[0] === r[1] ? String(r[0]) : r[0] + " to " + r[1] })
+      el("td", { class: "num", text: r[0] === r[1] ? String(r[0]) : r[0] + " to " + r[1] }),
+      el("td", { class: "num", text: tm ? fmtTime(tm.total) + ", slowest step " + fmtTime(tm.slow) : "n/a" })
     ]);
 
     var tbody = el("tbody");
@@ -151,6 +180,8 @@
         el("td", { class: "num", text: String(i + 1) }),
         el("td", { class: "num", text: String(run.tasks) }),
         el("td", { class: "num", text: String(run.steps || s.steps) }),
+        el("td", { class: "num", text: run.plan != null ? fmtTime(run.plan) : "n/a" }),
+        el("td", { class: "num", text: run.plan != null ? fmtTime(run.slow) : "n/a" }),
         el("td", {}, [run.file ? downloadLink(run.file, "download result") : "n/a"])
       ]));
     });
@@ -159,11 +190,13 @@
         el("th", { class: "num", text: "Run" }),
         el("th", { class: "num", text: "Tasks finished" }),
         el("th", { class: "num", text: "In time steps" }),
+        el("th", { class: "num", text: "Planning time" }),
+        el("th", { class: "num", text: "Slowest step" }),
         el("th", { text: "Result file" })
       ])]),
       tbody
     ]);
-    var detail = makeExpandable(summary, button, "detail-" + m.id + "-" + s.id, 4,
+    var detail = makeExpandable(summary, button, "detail-" + m.id + "-" + s.id, 5,
       el("div", { class: "content sub" }, [el("div", { class: "inner-wrap" }, [sub])]));
     out.appendChild(summary);
     out.appendChild(detail);
@@ -174,11 +207,12 @@
     var thead = el("thead", {}, [el("tr", {}, [
       el("th", { text: "Scenario" }),
       el("th", { class: "num", text: "Runs" }),
-      el("th", { class: "num", text: "Mean tasks, change vs " + baseline.name }),
-      el("th", { class: "num", text: "Min to max" })
+      el("th", { class: "num", text: "Mean tasks, change vs " + baselineFor(m).name }),
+      el("th", { class: "num", text: "Min to max" }),
+      el("th", { class: "num", text: "Planning time" })
     ])]);
     var tbody = el("tbody");
-    D.scenarios.forEach(function (s) {
+    shown.forEach(function (s) {
       var runs = runsOf(m, s.id);
       if (runs) scenarioRows(m, s, runs, tbody);
     });
@@ -204,27 +238,116 @@
     ]);
   }
 
-  var body = el("tbody");
-  D.methods.forEach(function (m) {
-    var button = el("button", { type: "button", text: m.name });
-    var row = el("tr", { class: "row", id: m.id }, [
-      el("td", {}, [button, m.baseline ? " (baseline)" : null, m.tag ? el("span", { class: "tag", text: m.tag }) : null, el("span", { class: "tagline", text: m.tagline || "" })])
-    ]);
-    D.scenarios.forEach(function (s) {
-      var runs = runsOf(m, s.id);
-      if (!runs) { row.appendChild(el("td", { class: "num", text: "n/a" })); return; }
-      // fewer runs than the usual 10: say so, so a single run is not read as a proper average
-      var few = runs.length < 10 ? el("span", { class: "nruns", text: runs.length + (runs.length === 1 ? " run" : " runs") }) : null;
-      row.appendChild(el("td", { class: "num" }, [el("span", { class: "mean", text: fmt(meanTasks(runs)) }), delta(m, s.id), few]));
-    });
-    var detail = makeExpandable(row, button, "detail-" + m.id, cols, detailContent(m));
-    body.appendChild(row);
-    body.appendChild(detail);
-  });
-  table.appendChild(body);
+  var metric = "tasks";     // "tasks" or "time"
+  var current = 0;
 
-  // open the row named in the address (index.html#wait-action)
+  // a cell of the planning time view: mean total time of the runs, how it compares with the baseline, slowest step
+  function timeCell(m, s) {
+    var runs = runsOf(m, s.id);
+    var t = runs ? timingOf(runs) : null;
+    if (!t) return el("td", { class: "num", text: "n/a" });
+    var base = baselineFor(m), bt = m === base ? null : timingOf(runsOf(base, s.id));
+    var cmp = null;
+    if (bt) {
+      var ratio = bt.total / t.total;
+      if (ratio >= 1.5) cmp = el("span", { class: "delta up", text: fmtTimes(ratio) + "x faster" });
+      else if (ratio <= 1 / 1.5) cmp = el("span", { class: "delta down", text: fmtTimes(1 / ratio) + "x slower" });
+      else cmp = el("span", { class: "delta", text: "about the same" });
+    }
+    var fewRuns = runs.length < 10 ? " \u00B7 " + runs.length + (runs.length === 1 ? " run" : " runs") : "";
+    return el("td", { class: "num" }, [
+      el("span", { class: "mean", text: fmtTime(t.total) }), cmp,
+      el("span", { class: "nruns", text: "slowest step " + fmtTime(t.slow) + fewRuns })
+    ]);
+  }
+
+  function renderMap(map) {
+    shown = scenariosOf(map);
+    table.textContent = "";
+    var headRow = el("tr", {}, [el("th", { text: "Algorithm" })]);
+    shown.forEach(function (s) {
+      headRow.appendChild(el("th", { class: "num" }, [
+        s.robots + " robots",
+        el("small", { text: s.steps + " steps" }),
+        s.download ? downloadLink(s.download, "download scenario") : null
+      ]));
+    });
+    table.appendChild(el("thead", {}, [headRow]));
+    var cols = shown.length + 1;
+
+    var body = el("tbody");
+    D.methods.forEach(function (m) {
+      if (!listed(m, shown)) return;
+      var button = el("button", { type: "button", text: m.name });
+      var row = el("tr", { class: "row", id: m.id }, [
+        el("td", {}, [
+          button,
+          m.baseline ? " (baseline)" : null,
+          el("span", { class: "tag", text: implOf(m) === "cpp" ? "C++" : "Python" }),
+          m.tag ? el("span", { class: "tag", text: m.tag }) : null,
+          el("span", { class: "tagline", text: m.tagline || "" })
+        ])
+      ]);
+      shown.forEach(function (s) {
+        if (metric === "time") { row.appendChild(timeCell(m, s)); return; }
+        var runs = runsOf(m, s.id);
+        if (!runs) { row.appendChild(el("td", { class: "num", text: "n/a" })); return; }
+        // fewer runs than the usual 10: say so, so a few runs are not read as a proper average
+        var few = runs.length < 10 ? el("span", { class: "nruns", text: runs.length + (runs.length === 1 ? " run" : " runs") }) : null;
+        row.appendChild(el("td", { class: "num" }, [el("span", { class: "mean", text: fmt(meanTasks(runs)) }), delta(m, s.id), few]));
+      });
+      var detail = makeExpandable(row, button, "detail-" + m.id, cols, detailContent(m));
+      body.appendChild(row);
+      body.appendChild(detail);
+    });
+    table.appendChild(body);
+    $("map-note").textContent = map.note || "";
+    $("metric-note").textContent = metric === "time"
+      ? "Total time the planner spent over the whole run (all steps added up), and the slowest single step. Taken from the same runs as the task counts; several runs shared one laptop, so read them as estimates. Only the C++ rows were timed."
+      : "";
+  }
+
+  var tabs = $("tabs");
+  function select(i) {
+    current = i;
+    Array.prototype.forEach.call(tabs.children, function (b, k) { b.setAttribute("aria-selected", String(k === i)); });
+    renderMap(maps[i]);
+  }
+  // switch between task counts and planning time (only offered when planning times are loaded)
+  var metricBox = $("metric");
+  if (window.TIMING) {
+    [["tasks", "Tasks finished"], ["time", "Planning time"]].forEach(function (o) {
+      var b = el("button", { type: "button", class: "seg", text: o[1], "aria-pressed": String(o[0] === metric) });
+      b.addEventListener("click", function () {
+        metric = o[0];
+        Array.prototype.forEach.call(metricBox.querySelectorAll(".seg"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        select(current);
+      });
+      metricBox.appendChild(b);
+    });
+  } else {
+    metricBox.hidden = true;
+  }
+  if (maps.length > 1) {
+    maps.forEach(function (map, i) {
+      var b = el("button", { type: "button", class: "tab", role: "tab", text: map.name });
+      b.addEventListener("click", function () { select(i); });
+      tabs.appendChild(b);
+    });
+  } else {
+    tabs.hidden = true;
+  }
+
+  // open the row named in the address (index.html#wait-action), on the first map where it is listed
   var wanted = location.hash.slice(1);
+  var start = 0;
+  var wm = D.methods.filter(function (m) { return m.id === wanted; })[0];
+  if (wm) {
+    for (var q = 0; q < maps.length; q++) {
+      if (listed(wm, scenariosOf(maps[q]))) { start = q; break; }
+    }
+  }
+  select(start);
   if (wanted && document.getElementById(wanted) && document.getElementById(wanted).classList.contains("row")) {
     document.getElementById(wanted).click();
   }

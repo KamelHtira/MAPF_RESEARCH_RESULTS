@@ -49,6 +49,22 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; backgro
 .lead { font-size: 1.08rem; max-width: 72ch; margin: 10px 0 16px; }
 .lead:empty { display: none; }
 
+/* one tab per map */
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 18px; border-bottom: 1px solid var(--line); }
+.tabs[hidden] { display: none; }
+.tab { all: unset; cursor: pointer; padding: 7px 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--text); font-weight: 600; border-bottom-color: currentColor; }
+.tab:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+#map-note { margin: 8px 0 0; min-height: 1.4em; }
+.metric { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.metric[hidden] { display: none; }
+.seg { all: unset; cursor: pointer; padding: 3px 12px; font-size: 0.9rem; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; }
+.seg:hover { color: var(--text); }
+.seg[aria-pressed="true"] { color: var(--text); background: var(--head); font-weight: 600; }
+.seg:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#metric-note { margin: 6px 0 0; }
+#metric-note:empty { display: none; }
 .table-wrap { overflow-x: auto; margin-top: 12px; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
