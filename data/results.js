@@ -37,7 +37,7 @@ window.RESULTS = {
     supervisor: "Varga László Zsolt",
     university: "Eötvös Loránd University (ELTE)",
     logo: "assets/elte-logo.svg",   // the official logo file; the page just leaves it out if the file is missing
-    updated: "2026-10-20",
+    updated: "2026-11-21",
     setup: "Kit: League of Robot Runners start-kit v1.1.5 (2023), built in WSL Ubuntu. Python rows ran in the kit's Python planner, C++ rows in a C++ port of it. " +
            "Python rows: 10 runs per setting. C++ rows: 10 runs on warehouse_small (seeds 1 to 10) and 3 runs on the big maps (PIBT and SIPP: 1 run). Runs of one setting differ because equal-cost paths are tie-broken by memory address (Python) or a seed (C++), so each implementation is compared with its own Default. " +
            "A robot counts as stuck when it makes no forward move in the last 60 steps of a run.",

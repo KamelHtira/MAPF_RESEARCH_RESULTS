@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One-way lanes tool | MAPF Research Results</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/tools.css">
+</head>
+<body>
+  <main>
+    <p class="toolnav"><a href="../index.html">&larr; Results</a> <span id="toolmenu"></span></p>
+    <h1>One-way lanes tool</h1>
+    <p class="lead">Load a map and see the one-way lanes the PIBT planner puts on it. A 1-wide corridor cell has walls on both sides. The columns that hold vertical corridors are numbered from left to right and the rows that hold horizontal corridors from top to bottom, and neighbouring streets get opposite directions. A lane is dropped again if it would cut cells off from the rest of the map (for example a dead end). The tool runs the same rules as the planner (<code>applyStreetLanes</code>).</p>
+
+    <div class="tool">
+      <div class="panel">
+        <div>
+          <h2>Map</h2>
+          <select id="sample" aria-label="Sample map"></select>
+          <p class="small" style="margin:6px 0">or open a .map file:</p>
+          <input id="file" type="file" accept=".map,.txt">
+          <div id="drop" class="drop" style="margin-top:8px">drop a .map file here</div>
+          <p id="status" class="small"></p>
+        </div>
+        <div>
+          <h2>Rules</h2>
+          <label>Corridor cells needed for a street <span class="val" id="mv"></span><input id="min" type="range" min="1" max="30" value="5"></label>
+          <label><input id="prune" type="checkbox" checked> drop lanes that create dead ends</label>
+        </div>
+        <div>
+          <h2>Show</h2>
+          <label><input id="show-dropped" type="checkbox" checked> dropped lanes (red)</label>
+          <label><input id="show-arrows" type="checkbox" checked> arrows when zoomed in</label>
+          <div class="legend" style="margin-top:6px">
+            <span><i style="background:#1971c2"></i>east</span><span><i style="background:#2f9e44"></i>south</span>
+            <span><i style="background:#f08c00"></i>west</span><span><i style="background:#ae3ec9"></i>north</span>
+            <span><i style="background:#e03131"></i>dropped</span>
+          </div>
+        </div>
+        <div>
+          <h2>Numbers</h2>
+          <dl class="stats" id="stats"></dl>
+        </div>
+        <div>
+          <h2>Selected cell</h2>
+          <p id="info" class="info small">Click a lane cell to see its street and segment.</p>
+        </div>
+      </div>
+      <div>
+        <div class="btns" style="margin-bottom:6px"><button id="zin" type="button">+</button><button id="zout" type="button">&minus;</button><button id="fit" type="button">Fit</button><span class="small">scroll to zoom, drag to move; zoom in to see arrows</span></div>
+        <div class="stage"><canvas id="canvas"></canvas><div id="hover" class="hover" hidden></div></div>
+      </div>
+    </div>
+  </main>
+  <script src="../js/toolmenu.js"></script>
+  <script src="../js/maptools.js"></script>
+  <script src="../js/lanes.js"></script>
+</body>
+</html>

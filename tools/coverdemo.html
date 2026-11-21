@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cover point demo | MAPF Research Results</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/tools.css">
+</head>
+<body>
+  <main class="wide">
+    <p class="toolnav"><a href="../index.html">&larr; Results</a> <span id="toolmenu"></span></p>
+    <h1>Cover point demo</h1>
+    <p class="lead">How PIBT scores every cell with cover points (CP) instead of a full distance table. Drag <strong>G</strong> (goal) and <strong>R</strong> (robot), edit walls, run the Dijkstra, then step the robot: it moves to the lowest-score neighbour.</p>
+
+    <div class="tool">
+      <div class="panel">
+        <div>
+          <h2>Run</h2>
+          <div class="btns"><button id="run" type="button">Run Dijkstra</button></div>
+          <label style="margin-top:6px">CPs settled <span class="val" id="dkv"></span><input id="dk" type="range" min="0" max="0" value="0" disabled></label>
+          <div class="btns" style="margin-top:8px"><button id="step" type="button">Step</button><button id="play" type="button">Play</button><button id="home" type="button">Back to start</button></div>
+          <p id="steps" class="small" style="margin:4px 0 0"></p>
+          <p id="rnote" class="small" style="margin:2px 0 0"></p>
+          <div class="btns" style="margin-top:8px"><button id="reset" type="button">Reset map</button><button id="clear" type="button">Clear walls</button></div>
+        </div>
+        <div>
+          <h2>Grid</h2>
+          <label>Size <span class="val" id="nv"></span>
+            <select id="size" aria-label="Grid size"><option>5</option><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></label>
+        </div>
+        <div>
+          <h2>Settings</h2>
+          <label>R: reach of a cell's list (steps) <span class="val" id="rv"></span><input id="rr" type="range" min="1" max="10" value="4"></label>
+          <label>C: CP spacing (steps) <span class="val" id="cv"></span><input id="cc" type="range" min="1" max="6" value="2"></label>
+        </div>
+        <div>
+          <h2>Clicking a cell</h2>
+          <label><input type="radio" name="mode" value="select" checked> select it (marks its CPs)</label>
+          <label><input type="radio" name="mode" value="wall"> toggle a wall</label>
+        </div>
+        <div>
+          <h2>Show</h2>
+          <label><input id="show-scores" type="checkbox" checked> score of every cell</label>
+          <label><input id="show-via" type="checkbox" checked> CP that gave the score (&larr; CP)</label>
+          <label><input id="show-win" type="checkbox" checked> exact window around the goal</label>
+          <div class="legend" style="margin-top:6px">
+            <span><i class="k-wall"></i>wall</span><span><i class="k-win"></i>goal window</span>
+            <span><i class="k-trail"></i>robot path</span><span><i class="k-best"></i>lowest neighbour</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="demo-top">
+          <div class="gridwrap"><div id="grid" class="dgrid simple" role="grid" aria-label="Demo grid"></div></div>
+          <div class="side">
+            <h3>CP scores for this goal (D)</h3>
+            <p id="dnote" class="small"></p>
+            <div id="darray" class="chips"></div>
+            <p id="nums" class="small"></p>
+            <h3>Second table: the exact window</h3>
+            <p class="small">Within R steps of the goal (red cells) the CPs are not used. A BFS from the goal gives every cell there its exact distance, and these cells read that number directly. Only cells outside the window use CP slots and D.</p>
+          </div>
+        </div>
+
+        <h2 class="dh">Detailed view: every cell as a grid of its CPs</h2>
+        <p class="small keyline">Each slot reads <strong>steps + D</strong>: the fixed steps from the cell to that CP, plus the CP's own distance to the goal (<strong>D<i>k</i></strong> = score of CP<i>k</i>, unknown until the Dijkstra runs). The smallest sum is the cell's score (<span class="kslot">yellow</span>). Cells in the exact window are dimmed: they ignore their slots.</p>
+        <div class="gridwrap wide2"><div id="grid2" class="dgrid detail" role="grid" aria-label="Detailed grid"></div></div>
+      </div>
+    </div>
+  </main>
+  <div id="ghost" class="ghost" hidden></div>
+  <script src="../js/toolmenu.js"></script>
+  <script src="../js/coverdemo.js"></script>
+</body>
+</html>

@@ -11,20 +11,69 @@
     <header id="masthead" class="masthead"></header>
     <h1 id="title"></h1>
     <p id="description" class="lead"></p>
+    <p class="small toolbar"><span id="toolmenu"></span><span>Small tools for maps and the planner's distance method.</span></p>
 
+    <section id="comparison">
+      <h2>Planner comparison (first results)</h2>
+      <p class="small">One instance per map, 300 steps, 1 s limit per step, 1000 robots (100 on random_32_32_20). Each planner runs unchanged in its own kit. This is a first look: the 10-instance run is still to come.</p>
+
+      <h3>PIBT with cover points (CP)</h3>
+      <p>The PIBT of Team Hipparcos with one change: the distance to a robot's goal comes from cover points instead of a table of the whole map per goal. Start-up about 0.03 s and 46 to 54 MB per run on the large maps.</p>
+
+      <h3>Route waypoints (SIPP)</h3>
+      <p>The waypoint planner of the supervisor: SIPP over a reduced map (skeleton), with waypoints along the route. A full planner, not PIBT. Slower per step than CP (13 to 33 ms), with 83 to 119 MB per run on the large maps; one step on sortation_large took 1.02 s.</p>
+
+      <h3>Team Hipparcos, 2024 submission</h3>
+      <p>The main-round submission of the 2024 competition (PIBT with clustered resumable A*), run in its own 2024 harness with its own task scheduler. It uses about 0.97 s of every 1 s step, and on the large maps it needs 6 to 8 GB of memory and 60 to 80 s of start-up.</p>
+
+      <h3>Tasks finished in 300 steps</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Map</th><th class="num">CP</th><th class="num">Route waypoints (SIPP)</th><th class="num">Hipparcos 2024</th></tr></thead>
+        <tbody>
+          <tr><td>warehouse_large</td><td class="num">834</td><td class="num">846</td><td class="num">815 in 40 steps only</td></tr>
+          <tr><td>sortation_large</td><td class="num">785</td><td class="num">843</td><td class="num">start-up over 30 s, not run</td></tr>
+          <tr><td>Paris</td><td class="num">998</td><td class="num">962</td><td class="num">944 in 40 steps only</td></tr>
+          <tr><td>brc202d</td><td class="num">348</td><td class="num">368</td><td class="num">start-up over 30 s, not run</td></tr>
+          <tr><td>random_32_32_20</td><td class="num">655</td><td class="num">724</td><td class="num">1055</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Cost per run</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Map</th><th class="num">CP</th><th class="num">Route waypoints (SIPP)</th><th class="num">Hipparcos 2024</th></tr></thead>
+        <tbody>
+          <tr><td>warehouse_large</td><td class="num">3.1 ms/step, 46 MB</td><td class="num">13 ms/step, 83 MB</td><td class="num">973 ms/step, 8.1 GB, start-up 79 s</td></tr>
+          <tr><td>sortation_large</td><td class="num">3.1 ms/step, 48 MB</td><td class="num">31 ms/step, 119 MB</td><td class="num">not measured</td></tr>
+          <tr><td>Paris</td><td class="num">3.4 ms/step, 47 MB</td><td class="num">33 ms/step, 90 MB</td><td class="num">973 ms/step, 6.2 GB, start-up 61 s</td></tr>
+          <tr><td>brc202d</td><td class="num">2.5 ms/step, 54 MB</td><td class="num">25 ms/step, 116 MB</td><td class="num">not measured</td></tr>
+          <tr><td>random_32_32_20</td><td class="num">0.3 ms/step, 10 MB</td><td class="num">3 ms/step, 14 MB</td><td class="num">971 ms/step, 38 MB</td></tr>
+        </tbody>
+      </table></div>
+
+      <p class="small">Mean planning time per step and peak memory of the whole process (the harness's own memory is included). Hipparcos large-map figures come from 40-step runs, because it needs the whole second every step. The task counts of Hipparcos are not directly comparable: it ran in the 2024 harness with its own task scheduler, while CP and SIPP used the v1.1.5 harness with round-robin assignment. Hipparcos' two runs on the large maps needed its preprocessing limit raised from the harness default of 30 s. On random_32_32_20 the Hipparcos run had 2 vertex conflicts; SIPP had one to three "incorrect vector size" errors in its first steps on the large maps.</p>
+    </section>
+
+    <p class="small"><a id="repo-link" href="#">Repository</a> <span id="updated"></span></p>
+
+    <!-- earlier results page, hidden for now; the script fills it in as before -->
+    <div id="earlier-results" hidden>
     <div id="tabs" class="tabs" role="tablist" aria-label="Map"></div>
     <p id="map-note" class="small"></p>
     <div id="metric" class="metric"><span class="small">Show</span></div>
     <p id="metric-note" class="small"></p>
     <div class="table-wrap"><table id="results"></table></div>
 
+    <section id="experiments"></section>
+
     <p id="setup" class="small"></p>
-    <p class="small"><a id="repo-link" href="#">Repository</a> <span id="updated"></span></p>
+    </div>
   </main>
 
   <noscript><p>This page needs JavaScript to show the results.</p></noscript>
   <script src="data/results.js"></script>
   <script src="data/timing.js"></script>
+  <script src="data/experiments.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/toolmenu.js"></script>
 </body>
 </html>

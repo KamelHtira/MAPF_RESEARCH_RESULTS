@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Waypoint tool | MAPF Research Results</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/tools.css">
+</head>
+<body>
+  <main>
+    <p class="toolnav"><a href="../index.html">&larr; Results</a> <span id="toolmenu"></span></p>
+    <h1>Waypoint tool</h1>
+    <p class="lead">Load a map and look at its waypoints, in three views. <strong>Cover points</strong> are the waypoints of the PIBT planner: every free cell is within C steps of one, and each knows the exact cost from all cells within R steps of it; the tool places them with the same greedy pass as the planner (plain steps, no lanes, so the count can differ a little from a planner run that uses lanes). <strong>Route waypoints view</strong> shows the thin skeleton of corridors that the SIPP planner builds from the map, and the route waypoints it takes along that skeleton from a start cell to a goal cell (every 24th cell by default). <strong>Skeleton as a graph</strong> turns that skeleton into a graph: its dead ends, T junctions and crossings become nodes and the corridors between them become edges. Nodes within a chosen number of steps of a centre node can be merged into one, and the numbers show how big the graph and its tables would be.</p>
+
+    <div class="tool">
+      <div class="panel">
+        <div>
+          <h2>Map</h2>
+          <select id="sample" aria-label="Sample map"></select>
+          <p class="small" style="margin:6px 0">or open a .map file:</p>
+          <input id="file" type="file" accept=".map,.txt">
+          <div id="drop" class="drop" style="margin-top:8px">drop a .map file here</div>
+          <p id="status" class="small"></p>
+        </div>
+        <div>
+          <h2>View</h2>
+          <label><input type="radio" name="mode" value="cover" checked> Cover points (PIBT planner)</label>
+          <label><input type="radio" name="mode" value="sup"> Route waypoints (skeleton and route)</label>
+          <label><input type="radio" name="mode" value="graph"> Skeleton as a graph (junctions)</label>
+          <label style="display:none"><input type="radio" name="mode" value="dyn"> Dynamic cover points (denser at junctions, sparser in open areas)</label>
+        </div>
+        <div id="cover-panel">
+        <div>
+          <h2>Waypoints</h2>
+          <label>Window R (steps) <span class="val" id="rv"></span><input id="r" type="range" min="4" max="40" value="16"></label>
+          <label>Coverage C (steps) <span class="val" id="cv"></span><input id="c" type="range" min="1" max="40" value="7"></label>
+          <label><input id="auto" type="checkbox" checked> C = (R - 1) / 2 (keeps the windows overlapping)</label>
+        </div>
+        <div>
+          <h2>Show</h2>
+          <label><input id="show-cov" type="checkbox"> colour every cell by the waypoint nearest to it</label>
+          <label><input id="show-wp" type="checkbox" checked> waypoints</label>
+        </div>
+        </div>
+        <div id="dyn-panel" hidden>
+          <h2>Dynamic density</h2>
+          <p class="small" style="margin:0 0 6px">C is the default radius. Each rule changes the radius a point covers, in percent of C. The radius never goes above R / 2 (neighbouring points must stay within R of each other) or below 2.</p>
+          <label><input id="d-seed" type="checkbox" checked> a point on every junction of the skeleton</label>
+          <label>Dense zone around junctions (steps) <span class="val" id="dzv"></span><input id="d-zone" type="range" min="0" max="16" value="6"></label>
+          <label>Radius in that zone (% of C) <span class="val" id="djv"></span><input id="d-juncp" type="range" min="30" max="100" value="50"></label>
+          <label><input id="d-wall" type="checkbox" checked> denser at thin walls (cells whose nearby cells need a detour)</label>
+          <label>Radius there (% of C) <span class="val" id="dwv"></span><input id="d-wallp" type="range" min="30" max="100" value="60"></label>
+          <label>Open area: clearance from obstacles at least <span class="val" id="dcv"></span><input id="d-opencl" type="range" min="2" max="8" value="4"></label>
+          <label>Radius in open areas (% of C) <span class="val" id="dov"></span><input id="d-openp" type="range" min="100" max="300" value="160"></label>
+          <label>Radius in corridors (% of C) <span class="val" id="dkv"></span><input id="d-corrp" type="range" min="100" max="250" value="130"></label>
+        </div>
+        <div id="sup-panel" hidden>
+          <h2>Skeleton and route</h2>
+          <label>Waypoint step (cells) <span class="val" id="sv"></span><input id="step" type="range" min="8" max="48" value="24"></label>
+          <label><input id="show-skel" type="checkbox" checked> skeleton (what stays of the map)</label>
+          <label><input id="show-route" type="checkbox" checked> route and waypoints</label>
+          <div class="btns" style="margin-top:6px"><button id="clear-route" type="button">Clear route</button></div>
+        </div>
+        <div id="graph-panel" hidden>
+          <h2>Skeleton graph</h2>
+          <label>Skeleton step (cells) <span class="val" id="gsv"></span><input id="gstep" type="range" min="8" max="48" value="24"></label>
+          <label><input id="gcorner" type="checkbox"> bends are nodes too</label>
+          <label>Merge nodes within (steps) of a centre <span class="val" id="gmv"></span><input id="gmerge" type="range" min="0" max="20" value="0"></label>
+          <label><input id="g-skel" type="checkbox" checked> skeleton cells (faint)</label>
+          <label><input id="g-edges" type="checkbox" checked> edges (straight lines between nodes)</label>
+          <label><input id="g-nodes" type="checkbox" checked> nodes</label>
+        </div>
+        <div>
+          <h2>Numbers</h2>
+          <dl class="stats" id="stats"></dl>
+          <div class="btns" style="margin-top:8px"><button id="estimate" type="button">Estimate data size</button><button id="measure" type="button" style="display:none">Measure distance error</button><button id="csv" type="button">Download waypoints (.csv)</button></div>
+        </div>
+        <div>
+          <h2>Selected</h2>
+          <p id="info" class="info small">Click a cell: the waypoint nearest to it is selected, with its window and the waypoints it connects to.</p>
+          <div id="cover-legend" class="legend"><span><i style="background:#d6336c"></i>waypoint</span><span><i style="background:#1971c2"></i>selected</span><span><i style="background:#f08c00"></i>connected</span><span><i style="background:rgba(25,113,194,.35)"></i>its window</span></div>
+          <div id="dyn-legend" class="legend" hidden><span><i style="background:#f08c00"></i>junction point</span><span><i style="background:#e8590c"></i>dense near junction</span><span><i style="background:#7048e8"></i>dense at thin wall</span><span><i style="background:#1971c2"></i>sparse, open area</span><span><i style="background:#12b886"></i>sparse, corridor</span><span><i style="background:#d6336c"></i>default</span><span><i style="background:#1971c2;outline:2px solid #f08c00"></i>selected</span></div>
+          <div id="sup-legend" class="legend" hidden><span><i style="background:#12b886"></i>skeleton</span><span><i style="background:#f08c00"></i>route</span><span><i style="background:#d6336c"></i>waypoint</span><span><i style="background:#2f9e44"></i>start</span><span><i style="background:#e03131"></i>goal</span></div>
+          <div id="graph-legend" class="legend" hidden><span><i style="background:#1971c2"></i>dead end</span><span><i style="background:#f08c00"></i>T junction</span><span><i style="background:#d6336c"></i>crossing</span><span><i style="background:#7048e8"></i>bend</span><span><i style="background:#862e9c"></i>merged group</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="btns" style="margin-bottom:6px"><button id="zin" type="button">+</button><button id="zout" type="button">&minus;</button><button id="fit" type="button">Fit</button><span class="small">scroll to zoom, drag to move</span></div>
+        <div class="stage"><canvas id="canvas"></canvas><div id="hover" class="hover" hidden></div></div>
+      </div>
+    </div>
+  </main>
+  <script src="../js/toolmenu.js"></script>
+  <script src="../js/maptools.js"></script>
+  <script src="../js/skeleton.js"></script>
+  <script src="../js/waypoints.js"></script>
+</body>
+</html>

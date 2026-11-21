@@ -307,6 +307,32 @@
       : "";
   }
 
+  // ---------- experiments: tables written by hand in data/experiments.js ----------
+  var X = window.EXPERIMENTS, box = $("experiments");
+  if (X && box) {
+    box.appendChild(el("h2", { text: X.title }));
+    box.appendChild(el("p", { class: "lead", text: X.intro }));
+    if (X.decisions && X.decisions.length) {
+      box.appendChild(el("ul", { class: "decisions" }, X.decisions.map(function (d) { return el("li", { text: d }); })));
+    }
+    X.items.forEach(function (it) {
+      var head = el("tr", {}, it.columns.map(function (c, i) { return el("th", { class: i ? "num" : "", text: c }); }));
+      var body = el("tbody");
+      it.rows.forEach(function (r) {
+        var cells = r.cells || r;
+        body.appendChild(el("tr", { class: r.key ? "key" : "" }, cells.map(function (c, i) {
+          if (typeof c === "string") return el("td", { class: i ? "num" : "", text: c });
+          return el("td", { class: "num" }, [c[0], c[1] ? el("span", { class: "delta" + (c[2] ? " " + c[2] : ""), text: c[1] }) : null]);
+        })));
+      });
+      box.appendChild(el("h3", { id: it.id, text: it.title }));
+      box.appendChild(el("p", { class: "small", text: it.setup }));
+      box.appendChild(el("div", { class: "table-wrap" }, [el("table", { class: "exp" }, [el("thead", {}, [head]), body])]));
+      box.appendChild(el("p", { class: "finding" }, [el("strong", { text: "Finding: " }), it.finding]));
+    });
+    if (X.caveats) box.appendChild(el("p", { class: "small", text: X.caveats }));
+  }
+
   var tabs = $("tabs");
   function select(i) {
     current = i;
