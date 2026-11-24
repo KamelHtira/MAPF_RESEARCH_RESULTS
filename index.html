@@ -16,7 +16,7 @@
     <section id="comparison">
       <h3>Tasks finished in 300 steps, tasks given in order (round-robin)</h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>Map</th><th class="num">CP<br><a href="downloads/algorithms/CoverPointPIBT.cpp" download>CoverPointPIBT.cpp</a></th><th class="num">Route waypoints (SIPP)<br><a href="downloads/algorithms/waypoints_sipp_MAPFPlanner.cpp" download>MAPFPlanner.cpp</a></th><th class="num">Hipparcos 2024<br><a href="downloads/algorithms/hipparcos_PIBT.cpp" download>PIBT.cpp</a></th></tr></thead>
+        <thead><tr><th>Map</th><th class="num">PIBT-CP<br><a href="downloads/algorithms/PIBT-CP.cpp" download>PIBT-CP.cpp</a></th><th class="num">Route waypoints (SIPP)<br><a href="downloads/algorithms/waypoints_sipp_MAPFPlanner.cpp" download>MAPFPlanner.cpp</a></th><th class="num">Hipparcos 2024<br><a href="downloads/algorithms/hipparcos_PIBT.cpp" download>PIBT.cpp</a></th></tr></thead>
         <tbody>
           <tr><td>warehouse_large</td><td class="num">834</td><td class="num">846</td><td class="num">609</td></tr>
           <tr><td>sortation_large</td><td class="num">785</td><td class="num">843</td><td class="num">725</td></tr>
@@ -28,13 +28,25 @@
 
       <h3>Tasks finished in 300 steps, tasks given by the 2024 scheduler (peak memory and steps that timed out in brackets)</h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>Map</th><th class="num">CP</th><th class="num">Route waypoints (SIPP)</th><th class="num">Hipparcos 2024</th></tr></thead>
+        <thead><tr><th>Map</th><th class="num">PIBT-CP</th><th class="num">Route waypoints (SIPP)</th><th class="num">Hipparcos 2024</th></tr></thead>
         <tbody>
           <tr><td>warehouse_large</td><td class="num">2867 (0.7 GB)</td><td class="num">2884 (0.7 GB, 1 timeout)</td><td class="num">2392 (8.4 GB, 1 timeout)</td></tr>
           <tr><td>sortation_large</td><td class="num">2894 (0.8 GB)</td><td class="num">3016 (0.9 GB, 13 timeouts)</td><td class="num">2614 (11.2 GB, 1 timeout)</td></tr>
           <tr><td>Paris</td><td class="num">3070 (0.9 GB)</td><td class="num">3005 (1.0 GB, 2 timeouts)</td><td class="num">2675 (6.7 GB, 1 timeout)</td></tr>
           <tr><td>brc202d</td><td class="num">2446 (2.9 GB)</td><td class="num">2362 (2.9 GB, 9 timeouts)</td><td class="num">out of memory at step 266</td></tr>
           <tr><td>random_32_32_20</td><td class="num">1041 (16 MB)</td><td class="num">1053 (19 MB)</td><td class="num">1055 (38 MB)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Planning time in 300 steps (limit 300 s), tasks given by the 2024 scheduler</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Map</th><th class="num">PIBT-CP</th><th class="num">Route waypoints (SIPP)</th><th class="num">Hipparcos 2024</th></tr></thead>
+        <tbody>
+          <tr><td>warehouse_large</td><td class="num">6 s</td><td class="num">17 s</td><td class="num">291 s</td></tr>
+          <tr><td>sortation_large</td><td class="num">8 s</td><td class="num">35 s</td><td class="num">291 s</td></tr>
+          <tr><td>Paris</td><td class="num">10 s</td><td class="num">20 s</td><td class="num">291 s</td></tr>
+          <tr><td>brc202d</td><td class="num">10 s</td><td class="num">74 s</td><td class="num">out of memory</td></tr>
+          <tr><td>random_32_32_20</td><td class="num">0.2 s</td><td class="num">0.9 s</td><td class="num">291 s</td></tr>
         </tbody>
       </table></div>
     </section>
