@@ -26,27 +26,15 @@
         </tbody>
       </table></div>
 
-      <h3>Tasks finished in 300 steps, tasks given by the 2024 scheduler (peak memory in brackets)</h3>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Map</th><th class="num">CP</th><th class="num">Hipparcos 2024</th></tr></thead>
-        <tbody>
-          <tr><td>warehouse_large</td><td class="num">2867 (0.7 GB)</td><td class="num">2392 (8.4 GB)</td></tr>
-          <tr><td>sortation_large</td><td class="num">2894 (0.8 GB)</td><td class="num">2614 (11.2 GB)</td></tr>
-          <tr><td>Paris</td><td class="num">3070 (0.9 GB)</td><td class="num">2675 (6.7 GB)</td></tr>
-          <tr><td>brc202d</td><td class="num">2446 (2.9 GB)</td><td class="num">out of memory at step 266</td></tr>
-          <tr><td>random_32_32_20</td><td class="num">1041 (16 MB)</td><td class="num">1055 (38 MB)</td></tr>
-        </tbody>
-      </table></div>
-
-      <h3>Cost per run, tasks given in order</h3>
+      <h3>Tasks finished in 300 steps, tasks given by the 2024 scheduler (peak memory and steps that timed out in brackets)</h3>
       <div class="table-wrap"><table>
         <thead><tr><th>Map</th><th class="num">CP</th><th class="num">Route waypoints (SIPP)</th><th class="num">Hipparcos 2024</th></tr></thead>
         <tbody>
-          <tr><td>warehouse_large</td><td class="num">3.1 ms/step, 46 MB</td><td class="num">13 ms/step, 83 MB</td><td class="num">974 ms/step, 7.9 GB, start-up 82 s</td></tr>
-          <tr><td>sortation_large</td><td class="num">3.1 ms/step, 48 MB</td><td class="num">31 ms/step, 119 MB</td><td class="num">974 ms/step, 10.9 GB, start-up 142 s</td></tr>
-          <tr><td>Paris</td><td class="num">3.4 ms/step, 47 MB</td><td class="num">33 ms/step, 90 MB</td><td class="num">974 ms/step, 5.8 GB, start-up 61 s</td></tr>
-          <tr><td>brc202d</td><td class="num">2.5 ms/step, 54 MB</td><td class="num">25 ms/step, 116 MB</td><td class="num">982 ms/step, 11.2 GB, start-up 137 s</td></tr>
-          <tr><td>random_32_32_20</td><td class="num">0.3 ms/step, 10 MB</td><td class="num">3 ms/step, 14 MB</td><td class="num">971 ms/step, 40 MB</td></tr>
+          <tr><td>warehouse_large</td><td class="num">2867 (0.7 GB)</td><td class="num">2884 (0.7 GB, 1 timeout)</td><td class="num">2392 (8.4 GB, 1 timeout)</td></tr>
+          <tr><td>sortation_large</td><td class="num">2894 (0.8 GB)</td><td class="num">3016 (0.9 GB, 13 timeouts)</td><td class="num">2614 (11.2 GB, 1 timeout)</td></tr>
+          <tr><td>Paris</td><td class="num">3070 (0.9 GB)</td><td class="num">3005 (1.0 GB, 2 timeouts)</td><td class="num">2675 (6.7 GB, 1 timeout)</td></tr>
+          <tr><td>brc202d</td><td class="num">2446 (2.9 GB)</td><td class="num">2362 (2.9 GB, 9 timeouts)</td><td class="num">out of memory at step 266</td></tr>
+          <tr><td>random_32_32_20</td><td class="num">1041 (16 MB)</td><td class="num">1053 (19 MB)</td><td class="num">1055 (38 MB)</td></tr>
         </tbody>
       </table></div>
     </section>
