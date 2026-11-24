@@ -3,9 +3,9 @@
 (function () {
   "use strict";
   var TOOLS = [
-    { href: "tools/waypoints.html", name: "Waypoints", desc: "cover points, route waypoints and the junction graph of a map" },
-    { href: "tools/lanes.html", name: "One-way lanes", desc: "the lanes the planner puts on a map" },
-    { href: "tools/coverdemo.html", name: "Cover point demo", desc: "a small grid, step by step: lists, Dijkstra, robot steps" }
+    { href: "tools/waypoints.html", name: "Map views", desc: "cover points, route waypoints and junction clusters of a map" },
+    { href: "tools/lanes.html", name: "Guidance algorithms", desc: "one-way lanes on a map" },
+    { href: "tools/coverdemo.html", name: "PIBT-CP demo", desc: "a small grid, step by step: lists, Dijkstra, robot steps" }
   ];
   var host = document.getElementById("toolmenu");
   if (!host) { return; }

@@ -1,7 +1,7 @@
 /* Waypoint tool. Four views of a map:
    - cover points: the waypoints of the PIBT planner (src/PIBT/Waypoints.cpp, plain steps) that its waypoint distance is built on;
    - the supervisor's skeleton and route waypoints (js/skeleton.js, ported from his SIPP planner);
-   - the skeleton turned into a graph: nodes are its dead ends and junctions, edges are the corridors between them;
+   - clusters: the area method of Team Hipparcos (2024) with base points on the junctions of the skeleton (or on a uniform grid, as they do);
    - dynamic cover points: the cover points with a local radius (denser at junctions and thin walls, sparser in open areas and corridors),
      and a measurement of how far the distance estimate lies above the true distance. */
 (function () {
@@ -439,13 +439,13 @@
       " steps away). Route on the skeleton: " + res.path.length + " cells, " + res.waypoints.length + " waypoints.";
   }
 
-  // ---------- the skeleton as a graph ----------
-  // Nodes: skeleton cells with 1 neighbour (dead end), 3 (T junction) or 4 (crossing) skeleton neighbours; optionally the bends (2 neighbours,
-  // not in a line) too. Edges: the chains of 2-neighbour cells between two nodes, with their length as cost.
-  // Merging: nodes joined by an edge of at most k steps become one node (placed at the member nearest to the group's centre).
-  var GRAPH_HELP = "Click a cell: the node nearest to it along the skeleton is selected, with the nodes it connects to. The tool also runs a shortest-path search from it over the whole graph and reports how long that took.";
-  var TYPE_NAME = ["", "dead end", "bend", "T junction", "crossing", "merged group"];
-  var TYPE_COLOR = ["", "#1971c2", "#7048e8", "#f08c00", "#d6336c", "#862e9c"];
+  // ---------- clusters from base points (the area method of Team Hipparcos, 2024) ----------
+  // Base points: either the junctions of the skeleton (crossings first, then T junctions, optionally dead ends), a junction being skipped
+  // when it is closer than the minimum distance to a base point already chosen; or, as Team Hipparcos does it, one random free cell near
+  // every node of a uniform grid. Areas: all base points grow at the same time, round d lets every base point take the cells it reaches
+  // with cost <= d (a step costs 1, a step that turns costs 2), a cell belongs to the base point that takes it first.
+  var CL_HELP = "Click a cell: its cluster is selected, with the base point it grows from and the clusters next to it.";
+  var areaLayer = null;
 
   function skelNbrs(rm, u, out) {
     var r = (u / cols) | 0, c = u - r * cols, k = 0;
@@ -456,178 +456,185 @@
     return k;
   }
 
-  // shortest paths from node src over the graph (edge lengths in steps); returns how many nodes it reached and the farthest distance
-  function gDijkstra(src) {
-    var INF = 2147483647, M = 4194304, d = new Int32Array(G.count).fill(INF), heap = [];
-    function push(key) { heap.push(key); var i = heap.length - 1; while (i > 0) { var p = (i - 1) >> 1; if (heap[p] <= heap[i]) break; var t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; } }
-    function pop() {
-      var top = heap[0], last = heap.pop();
-      if (heap.length) {
-        heap[0] = last; var i = 0;
-        for (;;) { var l = 2 * i + 1, r = l + 1, m = i; if (l < heap.length && heap[l] < heap[m]) m = l; if (r < heap.length && heap[r] < heap[m]) m = r; if (m === i) break; var t = heap[m]; heap[m] = heap[i]; heap[i] = t; i = m; }
-      }
-      return top;
+  function lcg(seed) { var x = seed >>> 0; return function () { x = (Math.imul(x, 1664525) + 1013904223) >>> 0; return x / 4294967296; }; }
+
+  function junctionBasePoints(rm, minD, deadEnds, info) {
+    var tmp = [0, 0, 0, 0], lists = [[], [], []], u;
+    for (u = 0; u < n; u++) {
+      if (rm[u] <= 0) continue;
+      var k = skelNbrs(rm, u, tmp);
+      if (k === 4) lists[0].push(u); else if (k === 3) lists[1].push(u); else if (k <= 1) lists[2].push(u);
     }
-    d[src] = 0; push(src);
-    var reached = 0, maxD = 0;
-    while (heap.length) {
-      var key = pop(), v = key % M, dv = (key - v) / M;
-      if (dv > d[v]) continue;
-      reached++; if (dv > maxD) maxD = dv;
-      for (var k = G.adjStart[v]; k < G.adjStart[v + 1]; k++) {
-        var to = G.adjTo[k], nd = dv + G.adjLen[k];
-        if (nd < d[to]) { d[to] = nd; push(nd * M + to); }
+    info.cross = lists[0].length; info.tee = lists[1].length; info.dead = lists[2].length;
+    var blocked = new Uint8Array(n), bp = [];
+    function tryAdd(c) {
+      if (blocked[c]) return;
+      bp.push(c);
+      bfs(c, minD - 1, function (v) { blocked[v] = 1; });
+    }
+    lists[0].forEach(tryAdd); lists[1].forEach(tryAdd);
+    if (deadEnds) lists[2].forEach(tryAdd);
+    return bp;
+  }
+
+  function uniformBasePoints(distance) {
+    var rnd = lcg(12345), r3 = Math.floor(distance / 3), bp = [];
+    for (var i = distance >> 1; i < rows; i += distance) {
+      for (var j = distance >> 1; j < cols; j += distance) {
+        var cand = [];
+        for (var ii = Math.max(i - r3, 0); ii < Math.min(i + r3, rows); ii++)
+          for (var jj = Math.max(j - r3, 0); jj < Math.min(j + r3, cols); jj++)
+            if (!grid[ii * cols + jj]) cand.push(ii * cols + jj);
+        if (cand.length) bp.push(cand[(rnd() * cand.length) | 0]);
       }
     }
-    return { reached: reached, maxD: maxD };
+    return bp;
+  }
+
+  var HM = 4194304;                       // heap key = cost * HM + node index
+  function hPush(h, key) {
+    h.push(key); var i = h.length - 1;
+    while (i > 0) { var p = (i - 1) >> 1; if (h[p] <= h[i]) break; var t = h[p]; h[p] = h[i]; h[i] = t; i = p; }
+  }
+  function hPop(h) {
+    var top = h[0], last = h.pop();
+    if (h.length) {
+      h[0] = last; var i = 0;
+      for (;;) { var l = 2 * i + 1, r = l + 1, m = i; if (l < h.length && h[l] < h[m]) m = l; if (r < h.length && h[r] < h[m]) m = r; if (m === i) break; var t = h[m]; h[m] = h[i]; h[i] = t; i = m; }
+    }
+    return top;
+  }
+
+  // the area growth of Team Hipparcos (MapUtils::createAreasAroundBasePoints): returns the cluster of every cell and the cost at which it was taken
+  function growAreas(bp) {
+    var B = bp.length, area = new Int32Array(n).fill(-1), taken = new Int16Array(n);
+    var H = [], S = [], i;
+    for (i = 0; i < B; i++) {
+      var st = { loc: [bp[i]], par: [-1], g: [0], closed: [0], map: new Map() };
+      st.map.set(bp[i], 0);
+      H.push([0]); S.push(st);
+    }
+    var d = 0, running = true, cand = [0, 0, 0, 0];
+    while (running) {
+      running = false;
+      for (i = 0; i < B; i++) {
+        var h = H[i];
+        if (!h.length) continue;
+        running = true;
+        var s = S[i];
+        while (h.length) {
+          var key = h[0], idx = key % HM, gk = (key - idx) / HM;
+          if (s.closed[idx] || gk > s.g[idx]) { hPop(h); continue; }
+          if (gk > d) break;
+          hPop(h);
+          s.closed[idx] = 1;
+          var loc = s.loc[idx], par = s.par[idx], g = s.g[idx], row = (loc / cols) | 0, col = loc - row * cols;
+          cand[0] = col + 1 < cols ? loc + 1 : -1; cand[1] = row + 1 < rows ? loc + cols : -1; cand[2] = col > 0 ? loc - 1 : -1; cand[3] = row > 0 ? loc - cols : -1;
+          for (var q = 0; q < 4; q++) {
+            var c = cand[q];
+            if (c < 0 || grid[c] || c === par) continue;
+            var cost = (par < 0 || c === loc + (loc - par)) ? 1 : 2;
+            var j = s.map.get(c);
+            if (j !== undefined) {
+              if (s.closed[j]) continue;
+              if (g + cost < s.g[j]) { s.g[j] = g + cost; s.par[j] = loc; hPush(h, (g + cost) * HM + j); }
+            } else if (area[c] < 0) {
+              j = s.loc.length; s.loc.push(c); s.par.push(loc); s.g.push(g + cost); s.closed.push(0); s.map.set(c, j);
+              hPush(h, (g + cost) * HM + j);
+            }
+          }
+          if (area[loc] < 0) { area[loc] = i; taken[loc] = g; }
+        }
+      }
+      d++;
+    }
+    return { area: area, taken: taken };
   }
 
   function buildGraph() {
     if (!map) return;
-    var step = +$("gstep").value, corners = $("gcorner").checked, mergeK = +$("gmerge").value;
-    $("gsv").textContent = step; $("gmv").textContent = mergeK;
+    var uniform = $("g-base").value === "uniform", step = +$("gstep").value, minD = +$("gmin").value, space = +$("gspace").value, deadEnds = $("gdead").checked;
+    $("gsv").textContent = step; $("gmv").textContent = minD; $("gpv").textContent = space;
+    $("g-junc-opts").hidden = uniform; $("g-uni-opts").hidden = !uniform;
     showStats([["Working ...", ""]]);
     setTimeout(function () {
-      var t0 = performance.now();
-      if (!gskel || gskel.step !== step) {
-        if (skel && skel.step === step) gskel = skel; else { gskel = new Skeleton(map, step); gskel.build(); }
-        gLayer = null;
-      }
-      var rm = gskel.rm, tmp = [0, 0, 0, 0], tmp2 = [0, 0, 0, 0], u, i, j;
-      // 1. nodes
-      var typ = new Uint8Array(n), nodeOrig = new Int32Array(n).fill(-1), nodes = [], cnt = [0, 0, 0, 0, 0], bends = 0;
+      var t0 = performance.now(), info = { cross: 0, tee: 0, dead: 0 }, bp, i, u;
+      if (!uniform) {
+        if (!gskel || gskel.step !== step) {
+          if (skel && skel.step === step) gskel = skel; else { gskel = new Skeleton(map, step); gskel.build(); }
+          gLayer = null;
+        }
+        bp = junctionBasePoints(gskel.rm, minD, deadEnds, info);
+      } else bp = uniformBasePoints(space);
+      var res = growAreas(bp), B = bp.length, area = res.area, size = new Int32Array(B), far = new Int16Array(B), none = 0;
       for (u = 0; u < n; u++) {
-        if (rm[u] <= 0) continue;
-        var k = skelNbrs(rm, u, tmp), t = 0;
-        if (k <= 1) t = 1;
-        else if (k === 2) { if (tmp[0] + tmp[1] !== 2 * u) { bends++; if (corners) t = 2; } }
-        else t = k;
-        if (t > 0) { typ[u] = t; nodeOrig[u] = nodes.length; nodes.push(u); cnt[t]++; }
+        if (grid[u]) continue;
+        var a = area[u];
+        if (a < 0) { none++; continue; }
+        size[a]++; if (res.taken[u] > far[a]) far[a] = res.taken[u];
       }
-      var m = nodes.length;
-      // 2. edges: walk along the chain of plain cells from every node; keep each edge once (from the end with the smaller index)
-      var edgeA = [], edgeB = [], edgeL = [], loops = 0;
-      for (i = 0; i < m; i++) {
-        var s = nodes[i], kk = skelNbrs(rm, s, tmp), nb = [tmp[0], tmp[1], tmp[2], tmp[3]];
-        for (j = 0; j < kk; j++) {
-          var prev = s, cur = nb[j], len = 1, ok = true;
-          while (typ[cur] === 0) {
-            var kc = skelNbrs(rm, cur, tmp2), nx = -1;
-            for (var q = 0; q < kc; q++) { if (tmp2[q] !== prev) { nx = tmp2[q]; break; } }
-            if (nx < 0 || ++len > n) { ok = false; break; }
-            prev = cur; cur = nx;
-          }
-          if (!ok) continue;
-          var e = nodeOrig[cur];
-          if (e === i) { loops++; continue; }
-          if (i < e) { edgeA.push(i); edgeB.push(e); edgeL.push(len); }
-        }
+      // clusters that touch: pairs of neighbouring cells with different clusters
+      var pairSet = new Map(), nbList = [];
+      for (i = 0; i < B; i++) nbList.push([]);
+      function touch(a, b) {
+        if (a < 0 || b < 0 || a === b) return;
+        if (a > b) { var t = a; a = b; b = t; }
+        var k = a * B + b;
+        if (!pairSet.has(k)) { pairSet.set(k, 1); nbList[a].push(b); nbList[b].push(a); }
       }
-      // 3. merge: go through the nodes in order; a node that is not in a group yet becomes the centre of a new one and takes every node
-      //    within `mergeK` steps along the edges (so a group never spreads further than that from its centre)
-      var INF = 2147483647, oStart = new Int32Array(m + 1);
-      for (i = 0; i < edgeA.length; i++) { oStart[edgeA[i] + 1]++; oStart[edgeB[i] + 1]++; }
-      for (i = 0; i < m; i++) oStart[i + 1] += oStart[i];
-      var oTo = new Int32Array(oStart[m]), oLen = new Int32Array(oStart[m]), oFill = oStart.slice(0, m);
-      for (i = 0; i < edgeA.length; i++) {
-        oTo[oFill[edgeA[i]]] = edgeB[i]; oLen[oFill[edgeA[i]]++] = edgeL[i];
-        oTo[oFill[edgeB[i]]] = edgeA[i]; oLen[oFill[edgeB[i]]++] = edgeL[i];
+      for (u = 0; u < n; u++) {
+        if (grid[u]) continue;
+        var rr = (u / cols) | 0, cc = u - rr * cols;
+        if (cc < cols - 1 && !grid[u + 1]) touch(area[u], area[u + 1]);
+        if (rr < rows - 1 && !grid[u + cols]) touch(area[u], area[u + cols]);
       }
-      var gid = new Int32Array(m).fill(-1), gc = 0, repList = [], memList = [], dd = new Int32Array(m).fill(INF), toC = new Int32Array(m);   // toC: steps from a node to the centre of its group
-      for (i = 0; i < m; i++) {
-        if (gid[i] >= 0) continue;
-        var g0 = gc++, taken = 1;
-        gid[i] = g0; repList.push(nodes[i]);
-        if (mergeK > 0) {
-          var touched = [i], qq = [i];
-          dd[i] = 0;
-          for (var qi = 0; qi < qq.length; qi++) {
-            var a0 = qq[qi];
-            for (var ke = oStart[a0]; ke < oStart[a0 + 1]; ke++) {
-              var b0 = oTo[ke], nd0 = dd[a0] + oLen[ke];
-              if (nd0 <= mergeK && nd0 < dd[b0]) {
-                if (dd[b0] === INF) touched.push(b0);
-                dd[b0] = nd0; qq.push(b0);
-                if (gid[b0] < 0) { gid[b0] = g0; taken++; }
-              }
-            }
-          }
-          for (var ti = 0; ti < touched.length; ti++) { if (gid[touched[ti]] === g0) toC[touched[ti]] = dd[touched[ti]]; dd[touched[ti]] = INF; }
-        }
-        memList.push(taken);
-      }
-      var rep = Int32Array.from(repList), members = Int32Array.from(memList), repType = new Uint8Array(gc);
-      for (i = 0; i < gc; i++) repType[i] = members[i] > 1 ? 5 : typ[rep[i]];
-      // distinct edges between groups (shortest wins)
-      var emap = new Map(), ea = [], eb = [], el = [];
-      for (i = 0; i < edgeA.length; i++) {
-        var a = gid[edgeA[i]], b = gid[edgeB[i]];
-        if (a === b) continue;
-        if (a > b) { var sw = a; a = b; b = sw; }
-        var key = a * gc + b, idx = emap.get(key), cost = edgeL[i] + toC[edgeA[i]] + toC[edgeB[i]];   // centre to centre, through this edge
-        if (idx === undefined) { emap.set(key, ea.length); ea.push(a); eb.push(b); el.push(cost); }
-        else if (cost < el[idx]) el[idx] = cost;
-      }
-      var adjStart = new Int32Array(gc + 1);
-      for (i = 0; i < ea.length; i++) { adjStart[ea[i] + 1]++; adjStart[eb[i] + 1]++; }
-      for (i = 0; i < gc; i++) adjStart[i + 1] += adjStart[i];
-      var adjTo = new Int32Array(adjStart[gc]), adjLen = new Int32Array(adjStart[gc]), fill = adjStart.slice(0, gc);
-      for (i = 0; i < ea.length; i++) {
-        adjTo[fill[ea[i]]] = eb[i]; adjLen[fill[ea[i]]++] = el[i];
-        adjTo[fill[eb[i]]] = ea[i]; adjLen[fill[eb[i]]++] = el[i];
-      }
-      // 4. the node nearest to every skeleton cell, along the skeleton (multi-source search from all nodes)
-      var ownO = new Int32Array(n).fill(-1), qu = new Int32Array(n), qh = 0, qt = 0;
-      for (i = 0; i < m; i++) { ownO[nodes[i]] = i; qu[qt++] = nodes[i]; }
-      while (qh < qt) {
-        var cu = qu[qh++], kn = skelNbrs(rm, cu, tmp);
-        for (j = 0; j < kn; j++) { if (ownO[tmp[j]] < 0) { ownO[tmp[j]] = ownO[cu]; qu[qt++] = tmp[j]; } }
-      }
-      var ownerGroup = new Int32Array(n).fill(-1);
-      for (u = 0; u < n; u++) { if (ownO[u] >= 0) ownerGroup[u] = gid[ownO[u]]; }
-      G = { count: gc, rep: rep, col: repType, members: members, ea: ea, eb: eb, el: el, adjStart: adjStart, adjTo: adjTo, adjLen: adjLen, ownerGroup: ownerGroup, stats: null };
-      var buildMs = performance.now() - t0;
-      // search time on the graph: three runs from different nodes
-      var ts = performance.now(), reached = 0;
-      for (i = 1; i <= 3; i++) { reached = gDijkstra(Math.min(gc - 1, Math.floor(gc * i / 4))).reached; }
-      var searchMs = (performance.now() - ts) / 3;
-      var edgeSum = 0, edgeMax = 0;
-      for (i = 0; i < el.length; i++) { edgeSum += el[i]; if (el[i] > edgeMax) edgeMax = el[i]; }
-      var pairBytes = gc * gc * 2;
-      G.stats = [
-        ["Map", map.rows + " x " + map.cols],
-        ["Free cells", map.free.toLocaleString()],
-        ["Skeleton cells", gskel.cells.toLocaleString() + " (" + (100 * gskel.cells / Math.max(1, map.free)).toFixed(1) + "% of the free cells)"],
-        ["Dead ends / T junctions / crossings", cnt[1].toLocaleString() + " / " + cnt[3].toLocaleString() + " / " + cnt[4].toLocaleString()],
-        ["Bends (2 neighbours, not in a line)", bends.toLocaleString() + (corners ? " (nodes)" : " (not nodes)")],
-        ["Graph nodes", gc.toLocaleString() + (mergeK > 0 ? " after merging (from " + m.toLocaleString() + ")" : "")],
-        ["Skeleton cells per node", (gskel.cells / Math.max(1, gc)).toFixed(1)],
-        ["Edges", ea.length.toLocaleString() + (loops ? " (" + (loops / 2) + " loops skipped)" : "")],
-        ["Edge length: mean / longest", (edgeSum / Math.max(1, el.length)).toFixed(1) + " / " + edgeMax + " steps"],
-        ["Table per goal on the graph", (gc * 2 / 1000).toFixed(0) + " KB (full table: " + (n * 2 / 1000).toFixed(0) + " KB)"],
-        ["All pairs on the graph", pairBytes >= 1e9 ? (pairBytes / 1e9).toFixed(1) + " GB" : (pairBytes / 1e6).toFixed(0) + " MB"],
-        ["Search from one node (Dijkstra)", searchMs.toFixed(1) + " ms, reaches " + reached.toLocaleString() + " nodes"],
-        ["Build time in the browser", (buildMs / 1000).toFixed(2) + " s"]
-      ];
+      var sizes = Array.prototype.slice.call(size).sort(function (x, y) { return x - y; });
+      var sizeSum = 0, farMax = 0, nbSum = 0, nbMax = 0;
+      for (i = 0; i < B; i++) { sizeSum += size[i]; if (far[i] > farMax) farMax = far[i]; nbSum += nbList[i].length; if (nbList[i].length > nbMax) nbMax = nbList[i].length; }
+      var pairBytes = B * B * 4, buildMs = performance.now() - t0;
+      G = { bp: Int32Array.from(bp), area: area, size: size, far: far, nb: nbList, count: B, stats: null };
+      areaLayer = null;
+      var rows2 = [["Map", map.rows + " x " + map.cols], ["Free cells", map.free.toLocaleString()]];
+      if (!uniform) rows2.push(["Skeleton cells", gskel.cells.toLocaleString() + " (" + (100 * gskel.cells / Math.max(1, map.free)).toFixed(1) + "% of the free cells)"],
+                               ["Crossings / T junctions / dead ends", info.cross.toLocaleString() + " / " + info.tee.toLocaleString() + " / " + info.dead.toLocaleString()]);
+      rows2.push(
+        ["Base points (= clusters)", B.toLocaleString() + (uniform ? " (one per " + space + " x " + space + " cells of the grid)" : " (at least " + minD + " steps apart)")],
+        ["Cluster size, cells: smallest / median / mean / largest", (B ? sizes[0] + " / " + sizes[B >> 1] + " / " + (sizeSum / B).toFixed(1) + " / " + sizes[B - 1] : "-")],
+        ["Farthest cell from its base point", farMax + " (cost: a step 1, a turn 2)"],
+        ["Neighbour clusters: mean / most", (B ? (nbSum / B).toFixed(1) : "0") + " / " + nbMax],
+        ["Cells in no cluster", none.toLocaleString() + (none ? " (no base point in their part of the map)" : "")],
+        ["Pair table of the base points", (pairBytes >= 1e9 ? (pairBytes / 1e9).toFixed(1) + " GB" : (pairBytes / 1e6).toFixed(1) + " MB") + " (B x B x 4 bytes, before the route lists)"],
+        ["Build time in the browser", (buildMs / 1000).toFixed(2) + " s"]);
+      G.stats = rows2;
       gSel = null;
-      if (mode === "graph") { showStats(G.stats); $("info").textContent = GRAPH_HELP; }
+      if (mode === "graph") { showStats(G.stats); $("info").textContent = CL_HELP; }
       view.draw();
     }, 20);
   }
 
   function gSkelLayer() {
-    if (!gLayer) gLayer = view.cellLayer(function (u) { return gskel.rm[u] > 0 ? [18, 184, 134, 110] : null; });
+    if (!gLayer) gLayer = view.cellLayer(function (u) { return gskel && gskel.rm[u] > 0 ? [18, 184, 134, 130] : null; });
     return gLayer;
   }
+  function clusterLayer() {
+    if (!areaLayer) {
+      areaLayer = view.cellLayer(function (u) {
+        if (grid[u]) return null;
+        var a = G.area[u];
+        if (a < 0) return [255, 201, 201, 255];
+        var c = hsl((a * 137.508) % 360, 55, 72);
+        return [c[0], c[1], c[2], 255];
+      });
+    }
+    return areaLayer;
+  }
 
-  function selectNode(g) {
-    var t0 = performance.now(), res = gDijkstra(g), ms = performance.now() - t0, nb = [];
-    for (var k = G.adjStart[g]; k < G.adjStart[g + 1]; k++) nb.push(G.adjTo[k]);
-    gSel = { g: g, nb: nb };
-    var r = (G.rep[g] / cols) | 0, c = G.rep[g] % cols;
-    $("info").textContent = "Node " + g + " at row " + r + ", column " + c + ": " + (G.members[g] > 1 ? "a merged group of " + G.members[g] + " nodes" : TYPE_NAME[G.col[g]]) +
-      " with " + nb.length + " edges. A shortest-path search from it over the whole graph reaches " + res.reached.toLocaleString() + " of " + G.count.toLocaleString() +
-      " nodes (farthest " + res.maxD + " steps) in " + ms.toFixed(1) + " ms in this browser.";
+  function selectCluster(a) {
+    if (a < 0) { gSel = null; $("info").textContent = "This cell is in no cluster: there is no base point in this part of the map."; view.draw(); return; }
+    var k = G.bp[a], r = (k / cols) | 0, c = k % cols;
+    gSel = { a: a, nb: G.nb[a], layer: view.cellLayer(function (u) { return !grid[u] && G.area[u] === a ? [25, 113, 194, 150] : null; }) };
+    $("info").textContent = "Cluster " + a + ": base point at row " + r + ", column " + c + ", " + G.size[a].toLocaleString() + " cells, farthest cell at cost " + G.far[a] +
+      ", " + G.nb[a].length + " neighbour clusters.";
     view.draw();
   }
 
@@ -638,7 +645,9 @@
       if ($("show-cov").checked && owner) ctx.drawImage(coverageLayer(), 0, 0);
       if (selLayer) ctx.drawImage(selLayer, 0, 0);
     } else if (mode === "graph") {
-      if (G && $("g-skel").checked) ctx.drawImage(gSkelLayer(), 0, 0);
+      if (G && $("g-areas").checked) ctx.drawImage(clusterLayer(), 0, 0);
+      if (G && gskel && $("g-skel").checked && $("g-base").value !== "uniform") ctx.drawImage(gSkelLayer(), 0, 0);
+      if (G && gSel) ctx.drawImage(gSel.layer, 0, 0);
     } else if (skelLayer && $("show-skel").checked) {
       ctx.drawImage(skelLayer, 0, 0);
     }
@@ -681,27 +690,19 @@
     }
     if (mode === "graph") {
       if (!G) return;
-      if ($("g-edges").checked) {
-        ctx.strokeStyle = "rgba(50,50,50,0.75)"; ctx.lineWidth = Math.max(0.1, 0.9 / v.scale);
-        ctx.beginPath();
-        for (var e = 0; e < G.ea.length; e++) { ctx.moveTo(px(G.rep[G.ea[e]]), py(G.rep[G.ea[e]])); ctx.lineTo(px(G.rep[G.eb[e]]), py(G.rep[G.eb[e]])); }
-        ctx.stroke();
-      }
       if ($("g-nodes").checked) {
-        for (var t = 1; t <= 5; t++) {
-          ctx.fillStyle = TYPE_COLOR[t]; ctx.beginPath();
-          for (var g = 0; g < G.count; g++) { if (G.col[g] === t) { var x = px(G.rep[g]), y = py(G.rep[g]); ctx.moveTo(x + rad, y); ctx.arc(x, y, rad, 0, 6.2832); } }
-          ctx.fill();
-        }
+        ctx.fillStyle = "#c2255c"; ctx.beginPath();
+        for (var g = 0; g < G.count; g++) { var x = px(G.bp[g]), y = py(G.bp[g]); ctx.moveTo(x + rad, y); ctx.arc(x, y, rad, 0, 6.2832); }
+        ctx.fill();
       }
       if (gSel) {
-        var sx = px(G.rep[gSel.g]), sy = py(G.rep[gSel.g]);
+        var sx = px(G.bp[gSel.a]), sy = py(G.bp[gSel.a]);
         ctx.strokeStyle = "#f08c00"; ctx.lineWidth = Math.max(0.2, 2 / v.scale);
         ctx.beginPath();
-        gSel.nb.forEach(function (w) { ctx.moveTo(sx, sy); ctx.lineTo(px(G.rep[w]), py(G.rep[w])); });
+        gSel.nb.forEach(function (w) { ctx.moveTo(sx, sy); ctx.lineTo(px(G.bp[w]), py(G.bp[w])); });
         ctx.stroke();
-        gSel.nb.forEach(function (w) { dot(G.rep[w], rad * 1.8, "#f08c00"); });
-        dot(G.rep[gSel.g], rad * 2.4, "#ffffff"); dot(G.rep[gSel.g], rad * 1.8, "#1971c2");
+        gSel.nb.forEach(function (w) { dot(G.bp[w], rad * 1.8, "#f08c00"); });
+        dot(G.bp[gSel.a], rad * 2.4, "#ffffff"); dot(G.bp[gSel.a], rad * 1.8, "#1971c2");
       }
       return;
     }
@@ -744,10 +745,10 @@
   });
   $("c").addEventListener("input", function () { $("auto").checked = false; if (+$("c").value > +$("r").value) $("c").value = $("r").value; later(); });
   $("auto").addEventListener("change", function () { if ($("auto").checked) { $("c").value = Math.max(1, Math.floor((+$("r").value - 1) / 2)); later(); } });
-  ["show-cov", "show-wp", "show-skel", "show-route", "g-skel", "g-edges", "g-nodes"].forEach(function (id) { $(id).addEventListener("change", function () { view.draw(); }); });
-  $("gstep").addEventListener("input", function () { $("gsv").textContent = $("gstep").value; clearTimeout(timer3); timer3 = setTimeout(buildGraph, 200); });
-  $("gmerge").addEventListener("input", function () { $("gmv").textContent = $("gmerge").value; clearTimeout(timer3); timer3 = setTimeout(buildGraph, 200); });
-  $("gcorner").addEventListener("change", buildGraph);
+  ["show-cov", "show-wp", "show-skel", "show-route", "g-skel", "g-areas", "g-nodes"].forEach(function (id) { $(id).addEventListener("change", function () { view.draw(); }); });
+  function laterGraph() { clearTimeout(timer3); timer3 = setTimeout(buildGraph, 200); }
+  ["gstep", "gmin", "gspace"].forEach(function (id) { $(id).addEventListener("input", function () { $({ gstep: "gsv", gmin: "gmv", gspace: "gpv" }[id]).textContent = $(id).value; laterGraph(); }); });
+  ["gdead", "g-base"].forEach(function (id) { $(id).addEventListener("change", buildGraph); });
   var dynLabels = { "d-zone": "dzv", "d-juncp": "djv", "d-wallp": "dwv", "d-opencl": "dcv", "d-openp": "dov", "d-corrp": "dkv" };
   function dynLabel(id) { var v = $(id).value; $(dynLabels[id]).textContent = (id === "d-zone" || id === "d-opencl") ? v : v + "%"; }
   Object.keys(dynLabels).forEach(function (id) { dynLabel(id); $(id).addEventListener("input", function () { dynLabel(id); if (mode === "dyn") later(); }); });
@@ -776,8 +777,8 @@
       $("sup-legend").hidden = mode !== "sup";
       $("graph-legend").hidden = mode !== "graph";
       $("estimate").hidden = !isCover();
-      $("csv").textContent = isCover() ? "Download waypoints (.csv)" : mode === "graph" ? "Download nodes (.csv)" : "Download skeleton cells (.csv)";
-      $("info").textContent = isCover() ? COVER_HELP : mode === "graph" ? GRAPH_HELP : SKEL_HELP;
+      $("csv").textContent = isCover() ? "Download waypoints (.csv)" : mode === "graph" ? "Download base points (.csv)" : "Download skeleton cells (.csv)";
+      $("info").textContent = isCover() ? COVER_HELP : mode === "graph" ? CL_HELP : SKEL_HELP;
       if (!map) return;
       if (isCover() && (mode === "dyn" || wasDyn)) { sel = null; selLayer = null; recompute(); return; }
       if (mode === "cover") showCoverStats();
@@ -820,14 +821,14 @@
     if (isCover()) { list = cells; if (mode === "dyn" && wpTag) out = ["id,cell,row,col,rule"]; }
     else if (mode === "graph") {
       if (!G) return;
-      out = ["id,cell,row,col,type,members"];
-      for (var g = 0; g < G.count; g++) out.push(g + "," + G.rep[g] + "," + ((G.rep[g] / cols) | 0) + "," + (G.rep[g] % cols) + "," + TYPE_NAME[G.col[g]] + "," + G.members[g]);
+      out = ["id,cell,row,col,cluster_cells"];
+      for (var g = 0; g < G.count; g++) out.push(g + "," + G.bp[g] + "," + ((G.bp[g] / cols) | 0) + "," + (G.bp[g] % cols) + "," + G.size[g]);
     }
     else if (skel) { for (var u = 0; u < n; u++) if (skel.rm[u] > 0) list.push(u); }
     for (var k = 0; k < list.length; k++) out.push(k + "," + list[k] + "," + ((list[k] / cols) | 0) + "," + (list[k] % cols) + (mode === "dyn" && wpTag ? "," + DYN_NAME[wpTag[k]] : ""));
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([out.join("\n") + "\n"], { type: "text/csv" }));
-    a.download = mode === "dyn" ? "dynamic_waypoints.csv" : mode === "cover" ? "waypoints.csv" : mode === "graph" ? "graph_nodes.csv" : "skeleton.csv";
+    a.download = mode === "dyn" ? "dynamic_waypoints.csv" : mode === "cover" ? "waypoints.csv" : mode === "graph" ? "base_points.csv" : "skeleton.csv";
     a.click();
   });
 
@@ -835,9 +836,7 @@
     if (!cell || !map || grid[cell.u]) return;
     if (isCover()) { selectCover(wpOf[cell.u] >= 0 ? wpOf[cell.u] : owner[cell.u]); return; }
     if (mode === "graph") {
-      if (!G) return;
-      var near = gskel.nearest(cell.u);
-      if (near && G.ownerGroup[near.cell] >= 0) selectNode(G.ownerGroup[near.cell]);
+      if (G) selectCluster(G.area[cell.u]);
       return;
     }
     if (!skel) return;
@@ -853,9 +852,9 @@
     var extra = grid[cell.u] ? " (obstacle)" : "";
     if (!extra && isCover() && wpOf[cell.u] >= 0) extra = " (waypoint " + wpOf[cell.u] + (mode === "dyn" && wpTag ? ", " + DYN_NAME[wpTag[wpOf[cell.u]]] : "") + ")";
     if (!extra && mode === "sup" && skel && skel.rm[cell.u] > 0) extra = " (skeleton)";
-    if (!extra && mode === "graph" && G && gskel.rm[cell.u] > 0) {
-      var og = G.ownerGroup[cell.u];
-      extra = (og >= 0 && G.rep[og] === cell.u) ? " (node " + og + ", " + (G.members[og] > 1 ? "merged group of " + G.members[og] : TYPE_NAME[G.col[og]]) + ")" : " (skeleton)";
+    if (!extra && mode === "graph" && G) {
+      var ga = G.area[cell.u];
+      extra = ga < 0 ? " (no cluster)" : (G.bp[ga] === cell.u ? " (base point " + ga + ")" : " (cluster " + ga + ")");
     }
     h.textContent = "row " + cell.r + ", col " + cell.c + extra;
   };
@@ -866,7 +865,7 @@
       map = m; rows = m.rows; cols = m.cols; n = rows * cols; grid = m.grid;
       seen = new Int32Array(n); dist = new Int16Array(n); queue = new Int32Array(n); stamp = 0;
       skel = null; skelLayer = null; route = null; sel = null; selLayer = null;
-      gskel = null; gLayer = null; G = null; gSel = null;
+      gskel = null; gLayer = null; G = null; gSel = null; areaLayer = null;
       dyn = null; wpTag = null; extraEst = null; extraMeasure = null; ucCache = {}; stamp0++;
       view.setMap(m);
       recompute();
@@ -889,6 +888,6 @@
     } };
   }
   $("rv").textContent = $("r").value; $("cv").textContent = $("c").value; $("sv").textContent = $("step").value;
-  $("gsv").textContent = $("gstep").value; $("gmv").textContent = $("gmerge").value;
+  $("gsv").textContent = $("gstep").value; $("gmv").textContent = $("gmin").value; $("gpv").textContent = $("gspace").value;
   loadSample();
 })();

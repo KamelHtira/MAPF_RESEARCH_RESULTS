@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Waypoint tool | MAPF Research Results</title>
+  <title>Map views | MAPF Research Results</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/tools.css">
 </head>
 <body>
   <main>
     <p class="toolnav"><a href="../index.html">&larr; Results</a> <span id="toolmenu"></span></p>
-    <h1>Waypoint tool</h1>
-    <p class="lead">Load a map and look at its waypoints, in three views. <strong>Cover points</strong> are the waypoints of the PIBT planner: every free cell is within C steps of one, and each knows the exact cost from all cells within R steps of it; the tool places them with the same greedy pass as the planner (plain steps, no lanes, so the count can differ a little from a planner run that uses lanes). <strong>Route waypoints view</strong> shows the thin skeleton of corridors that the SIPP planner builds from the map, and the route waypoints it takes along that skeleton from a start cell to a goal cell (every 24th cell by default). <strong>Skeleton as a graph</strong> turns that skeleton into a graph: its dead ends, T junctions and crossings become nodes and the corridors between them become edges. Nodes within a chosen number of steps of a centre node can be merged into one, and the numbers show how big the graph and its tables would be.</p>
+    <h1>Map views</h1>
+    <p class="lead">Load a map and look at its waypoints, in three views. <strong>Cover points</strong> are the waypoints of the PIBT planner: every free cell is within C steps of one, and each knows the exact cost from all cells within R steps of it; the tool places them with the same greedy pass as the planner (plain steps, no lanes, so the count can differ a little from a planner run that uses lanes). <strong>Route waypoints view</strong> shows the thin skeleton of corridors that the SIPP planner builds from the map, and the route waypoints it takes along that skeleton from a start cell to a goal cell (every 24th cell by default). <strong>Junction clusters</strong> is the area method of Team Hipparcos (2024 competition) with a different choice of base points: instead of a uniform grid, the base points sit on the junctions of the skeleton, no two closer than a chosen distance. Every base point then grows a cluster, all at the same time, and a cell joins the base point that reaches it first. The uniform grid of Team Hipparcos can be switched on for comparison.</p>
 
     <div class="tool">
       <div class="panel">
@@ -27,7 +27,7 @@
           <h2>View</h2>
           <label><input type="radio" name="mode" value="cover" checked> Cover points (PIBT planner)</label>
           <label><input type="radio" name="mode" value="sup"> Route waypoints (skeleton and route)</label>
-          <label><input type="radio" name="mode" value="graph"> Skeleton as a graph (junctions)</label>
+          <label><input type="radio" name="mode" value="graph"> Junction clusters (Hipparcos areas)</label>
           <label style="display:none"><input type="radio" name="mode" value="dyn"> Dynamic cover points (denser at junctions, sparser in open areas)</label>
         </div>
         <div id="cover-panel">
@@ -63,13 +63,19 @@
           <div class="btns" style="margin-top:6px"><button id="clear-route" type="button">Clear route</button></div>
         </div>
         <div id="graph-panel" hidden>
-          <h2>Skeleton graph</h2>
-          <label>Skeleton step (cells) <span class="val" id="gsv"></span><input id="gstep" type="range" min="8" max="48" value="24"></label>
-          <label><input id="gcorner" type="checkbox"> bends are nodes too</label>
-          <label>Merge nodes within (steps) of a centre <span class="val" id="gmv"></span><input id="gmerge" type="range" min="0" max="20" value="0"></label>
+          <h2>Junction clusters</h2>
+          <label>Base points <select id="g-base"><option value="junction">junctions of the skeleton</option><option value="uniform">uniform grid (Team Hipparcos)</option></select></label>
+          <div id="g-junc-opts">
+            <label>Skeleton step (cells) <span class="val" id="gsv"></span><input id="gstep" type="range" min="8" max="48" value="24"></label>
+            <label>Minimum distance between base points (steps) <span class="val" id="gmv"></span><input id="gmin" type="range" min="1" max="40" value="10"></label>
+            <label><input id="gdead" type="checkbox"> dead ends of the skeleton are base points too</label>
+          </div>
+          <div id="g-uni-opts" hidden>
+            <label>Grid spacing (cells) <span class="val" id="gpv"></span><input id="gspace" type="range" min="3" max="40" value="5"></label>
+          </div>
+          <label><input id="g-areas" type="checkbox" checked> colour the clusters</label>
           <label><input id="g-skel" type="checkbox" checked> skeleton cells (faint)</label>
-          <label><input id="g-edges" type="checkbox" checked> edges (straight lines between nodes)</label>
-          <label><input id="g-nodes" type="checkbox" checked> nodes</label>
+          <label><input id="g-nodes" type="checkbox" checked> base points</label>
         </div>
         <div>
           <h2>Numbers</h2>
@@ -82,7 +88,7 @@
           <div id="cover-legend" class="legend"><span><i style="background:#d6336c"></i>waypoint</span><span><i style="background:#1971c2"></i>selected</span><span><i style="background:#f08c00"></i>connected</span><span><i style="background:rgba(25,113,194,.35)"></i>its window</span></div>
           <div id="dyn-legend" class="legend" hidden><span><i style="background:#f08c00"></i>junction point</span><span><i style="background:#e8590c"></i>dense near junction</span><span><i style="background:#7048e8"></i>dense at thin wall</span><span><i style="background:#1971c2"></i>sparse, open area</span><span><i style="background:#12b886"></i>sparse, corridor</span><span><i style="background:#d6336c"></i>default</span><span><i style="background:#1971c2;outline:2px solid #f08c00"></i>selected</span></div>
           <div id="sup-legend" class="legend" hidden><span><i style="background:#12b886"></i>skeleton</span><span><i style="background:#f08c00"></i>route</span><span><i style="background:#d6336c"></i>waypoint</span><span><i style="background:#2f9e44"></i>start</span><span><i style="background:#e03131"></i>goal</span></div>
-          <div id="graph-legend" class="legend" hidden><span><i style="background:#1971c2"></i>dead end</span><span><i style="background:#f08c00"></i>T junction</span><span><i style="background:#d6336c"></i>crossing</span><span><i style="background:#7048e8"></i>bend</span><span><i style="background:#862e9c"></i>merged group</span></div>
+          <div id="graph-legend" class="legend" hidden><span><i style="background:#c2255c"></i>base point</span><span><i style="background:#1971c2"></i>selected cluster</span><span><i style="background:#f08c00"></i>neighbour cluster</span><span><i style="background:#ffc9c9"></i>in no cluster</span></div>
         </div>
       </div>
       <div>
